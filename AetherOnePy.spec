@@ -31,6 +31,20 @@ datas = [
     ('ui/dist/ui/browser', 'ui/dist/ui/browser')
 ]
 
+# Add pythonnet runtime files
+try:
+    import pythonnet
+    import os
+    pythonnet_path = os.path.dirname(pythonnet.__file__)
+    runtime_path = os.path.join(pythonnet_path, 'runtime')
+    if os.path.exists(runtime_path):
+        datas.append((runtime_path, 'pythonnet/runtime'))
+        print(f"Added pythonnet runtime files from: {runtime_path}")
+    else:
+        print(f"Warning: pythonnet runtime path not found: {runtime_path}")
+except ImportError:
+    print("Warning: pythonnet not available during build")
+
 excludes = [
     'matplotlib', 'scipy', 'opencv-python', 'cv2', 'pygame', 
     'PIL', 'Pillow', 'sphinx', 'sphinx_rtd_theme', 'gitpython', 
@@ -40,7 +54,8 @@ excludes = [
 hiddenimports = [
     'flask', 'webview', 'screeninfo', 'subprocess', 'time', 'sys', 'os',
     'urllib.request', 'urllib.error', 'traceback', 'threading', 'shutil', 
-    'queue', 'flask.templating', 'jinja2', 'werkzeug', 'flask_cors', 'flask_socketio'
+    'queue', 'flask.templating', 'jinja2', 'werkzeug', 'flask_cors', 'flask_socketio',
+    'pythonnet', 'clr', 'clr_loader', 'clr_loader.netfx', 'clr_loader.types'
 ]
 
 a = Analysis(
