@@ -285,7 +285,7 @@ def main():
         import threading
         threading.Thread(target=setup_bottom_bar, daemon=True).start()
         window.events.closed += on_window_closed
-        webview.start()
+        webview.start(gui='win32')
         
     except KeyboardInterrupt:
         debug_print("Interrupted by user")
