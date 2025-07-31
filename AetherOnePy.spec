@@ -2,6 +2,8 @@
 
 import os
 import shutil
+import sys
+import site
 
 # Clean up old build files automatically
 print("=== CLEANUP OLD FILES ===")
@@ -46,6 +48,27 @@ def collect_data_files():
         datas.append(('py', 'py'))
         print("Collected py directory")
     
+    # --- NEW: Check for and collect plugins from site-packages ---
+    # List the known plugin package names
+    plugin_packages = [
+        'AetherOnePySocialPlugin',
+        'FinCompassPlugin'
+    ]
+    
+    print("Looking for plugins in Python site-packages...")
+    # Get the path to the site-packages directory
+    site_packages_path = next(p for p in site.getsitepackages() if 'site-packages' in p)
+    
+    for plugin_name in plugin_packages:
+        plugin_src_path = os.path.join(site_packages_path, plugin_name)
+        plugin_dest_path = os.path.join('py', 'plugins', plugin_name)
+        if os.path.exists(plugin_src_path):
+            datas.append((plugin_src_path, plugin_dest_path))
+            print(f" - Found and collected plugin: {plugin_name}")
+        else:
+            print(f" - Warning: Plugin directory not found: {plugin_name}")
+    # ----------------------------------------------------------------------
+    
     # Collect data directory and all its contents
     if os.path.exists('data'):
         datas.append(('data', 'data'))
@@ -59,6 +82,15 @@ def collect_data_files():
     else:
         print(f"Warning: UI directory not found at {ui_path}. The UI might be missing.")
     
+    # Explicitly collect pythonnet and clr_loader dependencies
+    if os.path.exists('pythonnet'):
+        datas.append(('pythonnet', 'pythonnet'))
+        print("Collected pythonnet dependencies")
+    
+    if os.path.exists('clr_loader'):
+        datas.append(('clr_loader', 'clr_loader'))
+        print("Collected clr_loader dependencies")
+    
     return datas
 
 # Call the function to populate the datas list
@@ -71,7 +103,7 @@ excludes = [
     'git', 'eventlet', 'numpy', 'pandas', 'tkinter', 'test', 'unittest'
 ]
 
-# Hidden imports - The fix is to add 'pythonnet' and 'clr_loader' here
+# Hidden imports
 hiddenimports = [
     'flask', 'webview', 'screeninfo', 'subprocess', 'time', 'sys', 'os',
     'urllib.request', 'urllib.error', 'traceback', 'threading', 'shutil', 
