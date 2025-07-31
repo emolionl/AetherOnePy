@@ -45,14 +45,75 @@ try:
 except ImportError:
     print("Warning: pythonnet not available during build")
 
-# Add qrcode module files to ensure proper inclusion
-try:
-    import qrcode
-    qrcode_path = os.path.dirname(qrcode.__file__)
-    datas.append((qrcode_path, 'qrcode'))
-    print(f"Added qrcode module files from: {qrcode_path}")
-except ImportError:
-    print("Warning: qrcode not available during build")
+
+# Use the same logic as py/setup.py to discover plugin requirements
+def get_plugin_requirements_like_setup():
+    """Mirror the install_plugin_requirements() logic from py/setup.py"""
+    plugin_imports = []
+    plugins_dir = 'py/plugins'
+    
+    print("=== USING SETUP.PY LOGIC FOR PLUGIN DISCOVERY ===")
+    
+    if not os.path.isdir(plugins_dir):
+        print(f"No plugins directory found at {plugins_dir}")
+        return []
+        
+    for plugin_name in os.listdir(plugins_dir):
+        plugin_path = os.path.join(plugins_dir, plugin_name)
+        if os.path.isdir(plugin_path):
+            req_path = os.path.join(plugin_path, 'requirements.txt')
+            if os.path.exists(req_path):
+                print(f"[PLUGIN-BUILD] Processing requirements for plugin: {plugin_name}")
+                try:
+                    with open(req_path, 'r', encoding='utf-8') as f:
+                        for line in f:
+                            line = line.strip()
+                            if line and not line.startswith('#'):
+                                # Clean package name (remove version specifiers)
+                                pkg_name = line.split('==')[0].split('>=')[0].split('<=')[0].split('>')[0].split('<')[0].split('!=')[0].split('[')[0]
+                                pkg_name = pkg_name.strip()
+                                
+                                # Map pip package names to import names
+                                import_mapping = {
+                                    'python-dateutil': 'dateutil',
+                                    'python-dotenv': 'dotenv', 
+                                    'pillow': 'PIL',
+                                    'pyjwt': 'jwt',
+                                    'beautifulsoup4': 'bs4',
+                                    'pyyaml': 'yaml'
+                                }
+                                
+                                import_name = import_mapping.get(pkg_name.lower(), pkg_name)
+                                
+                                if import_name not in plugin_imports:
+                                    plugin_imports.append(import_name)
+                                    print(f"  → {import_name}")
+                                    
+                                    # Add common submodules for critical packages
+                                    if import_name == 'qrcode':
+                                        submodules = ['qrcode.constants', 'qrcode.image', 'qrcode.image.pil', 'qrcode.image.base']
+                                        plugin_imports.extend(submodules)
+                                    elif import_name == 'rich':
+                                        submodules = ['rich.print', 'rich.pretty', 'rich.console']
+                                        plugin_imports.extend(submodules) 
+                                    elif import_name == 'PIL':
+                                        submodules = ['PIL.Image', 'PIL.ImageDraw', 'PIL.ImageFont']
+                                        plugin_imports.extend(submodules)
+                                    elif import_name == 'flasgger':
+                                        plugin_imports.append('flasgger.swag_from')
+                                    elif import_name == 'dateutil':
+                                        plugin_imports.append('dateutil.parser')
+                                        
+                except Exception as e:
+                    print(f"[PLUGIN-BUILD] Failed to process requirements for {plugin_name}: {e}")
+            else:
+                print(f"[PLUGIN-BUILD] No requirements.txt for plugin: {plugin_name}")
+    
+    print(f"[PLUGIN-BUILD] Total plugin dependencies: {len(plugin_imports)}")
+    return plugin_imports
+
+# Get dynamic plugin requirements using setup.py logic
+plugin_hiddenimports = get_plugin_requirements_like_setup()
 
 excludes = [
     'matplotlib', 'scipy', 'opencv-python', 'cv2', 'pygame', 
@@ -60,7 +121,8 @@ excludes = [
     'git', 'eventlet', 'numpy', 'pandas', 'tkinter', 'test', 'unittest'
 ]
 
-hiddenimports = [
+# Base hiddenimports (core + main app requirements)
+base_hiddenimports = [
     'flask', 'webview', 'screeninfo', 'subprocess', 'time', 'sys', 'os',
     'urllib.request', 'urllib.error', 'traceback', 'threading', 'shutil', 
     'queue', 'flask.templating', 'jinja2', 'werkzeug', 'flask_cors', 'flask_socketio',
@@ -69,13 +131,25 @@ hiddenimports = [
     'flasgger', 'PIL', 'PIL.ImageDraw', 'PIL.ImageFont', 'dateutil', 'dateutil.parser',
     'psutil', 'asyncio', 'argparse', 'platform', 'socket', 're', 'json', 'logging',
     'importlib', 'multiprocessing', 'io',
-    # Plugin dependencies from requirements.txt files
-    'dotenv', 'requests', 'rich', 'rich.print', 'rich.pretty', 'icecream',
-    # Core dependencies from setup.py
-    'waitress', 'pyperclip', 'gitpython', 'openai',
-    # Additional plugin imports
+    # Core dependencies from setup.py (always installed)
+    'requests', 'waitress', 'pyperclip', 'gitpython', 'openai',
+    # Common additional imports
     'datetime', 'uuid', 'flasgger.swag_from'
 ]
+
+# Dynamically add plugin requirements (mirrors py/setup.py behavior)
+hiddenimports = base_hiddenimports + plugin_hiddenimports
+
+# Remove duplicates while preserving order
+seen = set()
+hiddenimports = [x for x in hiddenimports if not (x in seen or seen.add(x))]
+
+print(f"=== HIDDENIMPORTS SUMMARY ===")
+print(f"Base imports: {len(base_hiddenimports)}")
+print(f"Plugin imports added: {len(plugin_hiddenimports)}")
+print(f"Total after deduplication: {len(hiddenimports)}")
+if plugin_hiddenimports:
+    print(f"Dynamic plugin imports: {plugin_hiddenimports}")
 
 a = Analysis(
     ['desktop_launcher.py'],
