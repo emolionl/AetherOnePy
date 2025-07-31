@@ -2,7 +2,6 @@
 
 import os
 import shutil
-import sys
 from PyInstaller.utils.hooks import get_package_paths
 
 print("=== CLEANUP OLD FILES ===")
@@ -37,20 +36,18 @@ try:
     print(f"pythonnet path: {pythonnet_path}")
     print(f"pywebview path: {webview_path}")
     
-    # Add the entire clr_loader and pythonnet directories to the bundle
+    # Add the entire clr_loader, pythonnet, and pywebview directories to the bundle
+    # This is the most reliable way to ensure all necessary files (including DLLs) are included.
     clr_loader_data = (clr_loader_path, "clr_loader")
     pythonnet_data = (pythonnet_path, "pythonnet")
-    
-    # Add the necessary webview files
-    webview_dll = (os.path.join(webview_path, "platforms", "edgehtml.dll"), "webview/platforms")
-    webview_host = (os.path.join(webview_path, "platforms", "webviewhost.exe"), "webview/platforms")
+    webview_data = (webview_path, "webview")
     
 except Exception as e:
     print(f"Warning: Could not find package. The build might fail. Error: {e}")
     clr_loader_data = None
     pythonnet_data = None
-    webview_dll = None
-    webview_host = None
+    webview_data = None
+
 
 # Collect data files from the source tree
 datas = [
@@ -63,10 +60,8 @@ if clr_loader_data:
     datas.append(clr_loader_data)
 if pythonnet_data:
     datas.append(pythonnet_data)
-if webview_dll:
-    datas.append(webview_dll)
-if webview_host:
-    datas.append(webview_host)
+if webview_data:
+    datas.append(webview_data)
 
 excludes = [
     'matplotlib', 'scipy', 'opencv-python', 'cv2', 'pygame', 
