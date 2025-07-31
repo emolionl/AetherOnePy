@@ -56,12 +56,39 @@ jobs:
         New-Item -Path "data" -ItemType Directory -Force
       shell: pwsh
 
-    - name: Clone AetherOne Social Plugin
-      run: git clone https://github.com/emolionl/AetherOnePySocialPlugin.git ${{ env.PLUGIN_DIR }}/AetherOnePySocialPlugin
-      shell: pwsh
-
-    - name: Clone Financial Compass Plugin
-      run: git clone https://github.com/emolionl/FinCompassPlugin.git ${{ env.PLUGIN_DIR }}/FinCompassPlugin
+    - name: Clone plugins from config
+      run: |
+        Write-Host "=== Cloning Plugins from plugins-config.json ===" -ForegroundColor Cyan
+        $config = Get-Content -Path "plugins-config.json" | ConvertFrom-Json
+        $environment = "${{ github.event.inputs.environment || 'ci' }}"
+        
+        foreach ($pluginKey in $config.plugins.PSObject.Properties.Name) {
+            $plugin = $config.plugins.$pluginKey
+            
+            if (-not $plugin.enabled) {
+                Write-Host "⏭️ Skipping disabled plugin: $($plugin.name)" -ForegroundColor Yellow
+                continue
+            }
+            
+            if ($environment -eq "ci" -and $config.environments.ci.skip_optional -and -not $plugin.required) {
+                Write-Host "⏭️ Skipping optional plugin in CI: $($plugin.name)" -ForegroundColor Yellow
+                continue
+            }
+            
+            $repoUrl = $plugin.repository.url
+            $branch = $plugin.repository.branch
+            $installPath = "${{ env.PLUGIN_DIR }}/$pluginKey"
+            
+            Write-Host "📦 Cloning $($plugin.name) from $repoUrl" -ForegroundColor Cyan
+            git clone --branch $branch $repoUrl $installPath
+            
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "✅ Successfully cloned $($plugin.name)" -ForegroundColor Green
+            } else {
+                Write-Host "❌ Failed to clone $($plugin.name)" -ForegroundColor Red
+                exit 1
+            }
+        }
       shell: pwsh
         
     - name: Install plugin dependencies
@@ -131,12 +158,48 @@ jobs:
         }
       shell: pwsh
 
-    - name: Archive build directory
+    - name: Clean and optimize build directory
+      run: |
+        Write-Host "=== Cleaning Build Directory ===" -ForegroundColor Green
+        
+        # Remove unnecessary files to reduce size
+        $cleanupPaths = @(
+            "dist/AetherOnePy/_internal/py/plugins/*/frontend/node_modules",
+            "dist/AetherOnePy/_internal/py/plugins/*/.git",
+            "dist/AetherOnePy/_internal/py/plugins/*/*.md",
+            "dist/AetherOnePy/_internal/py/plugins/*/docs",
+            "dist/AetherOnePy/_internal/py/plugins/*/tests",
+            "dist/AetherOnePy/_internal/py/plugins/*/__pycache__"
+        )
+        
+        foreach ($path in $cleanupPaths) {
+            if (Test-Path $path) {
+                Write-Host "🧹 Removing: $path" -ForegroundColor Yellow
+                Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+        
+        # Get size before compression
+        $size = (Get-ChildItem -Path "dist/AetherOnePy" -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB
+        Write-Host "📊 Build directory size: $([math]::Round($size, 2)) MB" -ForegroundColor Cyan
+      shell: pwsh
+
+    - name: Archive build directory with compression
       run: |
         Write-Host "=== Archiving Build Directory ===" -ForegroundColor Green
         $archiveName = "AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}.zip"
-        Compress-Archive -Path "dist/AetherOnePy/*" -DestinationPath $archiveName -Force
-        Write-Host "✅ Created archive: $archiveName" -ForegroundColor Green
+        
+        # Use maximum compression
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [System.IO.Compression.ZipFile]::CreateFromDirectory("dist/AetherOnePy", $archiveName, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+        
+        $archiveSize = (Get-Item $archiveName).Length / 1MB
+        Write-Host "✅ Created archive: $archiveName ($([math]::Round($archiveSize, 2)) MB)" -ForegroundColor Green
+        
+        # Split large files if needed (>500MB)
+        if ($archiveSize -gt 500) {
+            Write-Host "⚠️ Archive is large, consider splitting or further optimization" -ForegroundColor Yellow
+        }
       shell: pwsh
 
     - name: Upload build with plugins
@@ -145,6 +208,18 @@ jobs:
         name: AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}-${{ github.sha }}
         path: AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}.zip
         retention-days: 30
+        compression-level: 0  # Already compressed
+      continue-on-error: true
+      id: upload_attempt
+
+    - name: Retry upload on failure
+      if: steps.upload_attempt.outcome == 'failure'
+      uses: actions/upload-artifact@v4
+      with:
+        name: AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}-${{ github.sha }}-retry
+        path: AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}.zip
+        retention-days: 30
+        compression-level: 0
 
     - name: Create release with plugins
       if: github.event.inputs.create_release == 'true' || startsWith(github.ref, 'refs/tags/')
