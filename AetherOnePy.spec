@@ -3,22 +3,14 @@
 import os
 import shutil
 
+# This spec file now assumes the CI workflow has correctly placed all files
+# into the py/ and data/ directories prior to the build.
+
 print("=== CLEANUP OLD FILES ===")
 try:
     if os.path.exists('dist'):
         print("Removing old dist directory...")
-        for i in range(3):
-            try:
-                shutil.rmtree('dist')
-                break
-            except PermissionError:
-                if i < 2:
-                    import time
-                    time.sleep(2)
-                    continue
-                else:
-                    print("Warning: Could not remove dist directory completely")
-    
+        shutil.rmtree('dist')
     if os.path.exists('build'):
         print("Removing old build directory...")
         shutil.rmtree('build')
@@ -34,36 +26,12 @@ try:
 except Exception as e:
     print(f"Directory creation error: {e}")
 
-def collect_data_files():
-    datas = []
-    
-    # Collect the main py directory files
-    if os.path.exists('py'):
-        datas.append(('py', 'py'))
-        print("Collected py directory")
-
-    # Explicitly collect the plugins directory as a separate entry for safety
-    plugins_path = 'py/plugins'
-    if os.path.exists(plugins_path):
-        datas.append((plugins_path, 'py/plugins'))
-        print(f"Collected plugins directory from {plugins_path}")
-    
-    # Collect data directory and all its contents
-    if os.path.exists('data'):
-        datas.append(('data', 'data'))
-        print("Collected data directory")
-    
-    # Collect UI files
-    ui_path = 'ui/dist/ui/browser'
-    if os.path.exists(ui_path):
-        datas.append((ui_path, ui_path))
-        print(f"Collected UI files from {ui_path}")
-    else:
-        print(f"Warning: UI directory not found at {ui_path}. The UI might be missing.")
-    
-    return datas
-
-datas = collect_data_files()
+# Collect data files from the source tree
+datas = [
+    ('py', 'py'),
+    ('data', 'data'),
+    ('ui/dist/ui/browser', 'ui/dist/ui/browser')
+]
 
 excludes = [
     'matplotlib', 'scipy', 'opencv-python', 'cv2', 'pygame', 
