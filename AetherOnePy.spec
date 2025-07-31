@@ -55,7 +55,17 @@ hiddenimports = [
     'flask', 'webview', 'screeninfo', 'subprocess', 'time', 'sys', 'os',
     'urllib.request', 'urllib.error', 'traceback', 'threading', 'shutil', 
     'queue', 'flask.templating', 'jinja2', 'werkzeug', 'flask_cors', 'flask_socketio',
-    'pythonnet', 'clr', 'clr_loader', 'clr_loader.netfx', 'clr_loader.types'
+    'pythonnet', 'clr', 'clr_loader', 'clr_loader.netfx', 'clr_loader.types',
+    'qrcode', 'qrcode.constants', 'qrcode.image', 'qrcode.image.pil',
+    'flasgger', 'PIL', 'PIL.ImageDraw', 'PIL.ImageFont', 'dateutil', 'dateutil.parser',
+    'psutil', 'asyncio', 'argparse', 'platform', 'socket', 're', 'json', 'logging',
+    'importlib', 'multiprocessing', 'io',
+    # Plugin dependencies from requirements.txt files
+    'dotenv', 'requests', 'rich', 'rich.print', 'rich.pretty', 'icecream',
+    # Core dependencies from setup.py
+    'waitress', 'pyperclip', 'gitpython', 'openai',
+    # Additional plugin imports
+    'datetime', 'uuid', 'flasgger.swag_from'
 ]
 
 a = Analysis(
