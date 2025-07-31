@@ -68,9 +68,8 @@ def main():
     debug_print("=== AETHER ONE PY SUBPROCESS LAUNCHER ===")
     global flask_process
     flask_process = None
-    flask_process = None
 
-    os.makedirs('data', exist_ok=True)
+    #os.makedirs('data', exist_ok=True)
     
     try:
         # Find Python
