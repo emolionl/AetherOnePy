@@ -121,27 +121,171 @@ class AetherOnePy:
         if not os.path.isdir(os.path.join(self.PROJECT_ROOT, "broadcasts")):
             os.makedirs(os.path.join(self.PROJECT_ROOT, "broadcasts"))
 
+    def get_resource_path(self, relative_path):
+        """Get absolute path to resource, handling PyInstaller bundled resources"""
+        try:
+            # PyInstaller creates a temp folder and stores path in _MEIPASS
+            base_path = sys._MEIPASS
+        except Exception:
+            base_path = os.path.abspath(".")
+        return os.path.join(base_path, relative_path)
+
     def load_plugins(self):
-        PLUGINS_DIR = os.path.join(os.path.dirname(__file__), 'plugins')
+        print("=== PLUGIN LOADING DEBUG ===")
+        
+        # Get the current working directory and __file__ location
+        current_dir = os.getcwd()
+        script_dir = os.path.dirname(__file__)
+        print(f"Current working directory: {current_dir}")
+        print(f"Script directory (__file__): {script_dir}")
+        
+        # Check if we're running in PyInstaller
+        if getattr(sys, 'frozen', False):
+            print("Running in PyInstaller build")
+            # In PyInstaller, use sys._MEIPASS for resources
+            base_path = getattr(sys, '_MEIPASS', script_dir)
+            print(f"PyInstaller base path: {base_path}")
+            # Use the resource path method for consistency
+            PLUGINS_DIR = self.get_resource_path('py/plugins')
+        else:
+            print("Running in development mode")
+            base_path = script_dir
+            PLUGINS_DIR = os.path.join(base_path, 'plugins')
+        
+        print(f"Looking for plugins in: {PLUGINS_DIR}")
+        
+        # Also check alternative locations in case of different PyInstaller configurations
+        alternative_paths = [
+            os.path.join(base_path, 'plugins'),
+            os.path.join(base_path, 'py', 'plugins'),
+            os.path.join(current_dir, 'py', 'plugins'),
+            os.path.join(current_dir, '_internal', 'py', 'plugins')
+        ]
+        
+        plugin_path_found = None
         if os.path.exists(PLUGINS_DIR) and os.path.isdir(PLUGINS_DIR):
-            plugin_directories = [d for d in os.listdir(PLUGINS_DIR) if os.path.isdir(os.path.join(PLUGINS_DIR, d))]
+            plugin_path_found = PLUGINS_DIR
+        else:
+            print(f"Primary plugins path not found: {PLUGINS_DIR}")
+            print("Checking alternative paths...")
+            for alt_path in alternative_paths:
+                print(f"  Checking: {alt_path}")
+                if os.path.exists(alt_path) and os.path.isdir(alt_path):
+                    print(f"  ✓ Found plugins at: {alt_path}")
+                    plugin_path_found = alt_path
+                    break
+                else:
+                    print(f"  ✗ Not found")
+        
+        if plugin_path_found:
+            PLUGINS_DIR = plugin_path_found
+            print(f"✓ Using plugins directory: {PLUGINS_DIR}")
+            
+            # List all items in plugins directory
+            all_items = os.listdir(PLUGINS_DIR)
+            print(f"Items in plugins directory: {all_items}")
+            
+            plugin_directories = [d for d in all_items if os.path.isdir(os.path.join(PLUGINS_DIR, d))]
+            print(f"Plugin directories found: {plugin_directories}")
+            
+            if not plugin_directories:
+                print("⚠️ No plugin directories found")
+                return
+            
+            # Add plugins directory to Python path for imports
+            parent_dir = os.path.dirname(PLUGINS_DIR)
+            if parent_dir not in sys.path:
+                sys.path.insert(0, parent_dir)
+                print(f"Added to sys.path: {parent_dir}")
+            
+            loaded_plugins = 0
             for plugin_name in plugin_directories:
+                print(f"\n--- Processing plugin: {plugin_name} ---")
                 plugin_path = os.path.join(PLUGINS_DIR, plugin_name)
-                routes_module_name = f"plugins.{plugin_name}.routes"
+                print(f"Plugin path: {plugin_path}")
+                
+                # Check for required files
+                routes_file = os.path.join(plugin_path, 'routes.py')
+                init_file = os.path.join(plugin_path, '__init__.py')
+                
+                print(f"Checking for routes.py: {'✓' if os.path.exists(routes_file) else '✗'}")
+                print(f"Checking for __init__.py: {'✓' if os.path.exists(init_file) else '✗'}")
+                
+                if not os.path.exists(routes_file):
+                    print(f"⚠️ Skipping {plugin_name}: routes.py not found")
+                    continue
+                
+                routes_module_name = f"py.plugins.{plugin_name}.routes"
+                print(f"Attempting to import: {routes_module_name}")
+                
                 try:
                     routes_module = importlib.import_module(routes_module_name)
+                    print(f"✓ Successfully imported {routes_module_name}")
+                    
                     if hasattr(routes_module, 'create_blueprint'):
-                        plugin_blueprint = routes_module.create_blueprint()
-                        self.app.register_blueprint(plugin_blueprint, url_prefix=f"/{plugin_name.lower()}")
-                        print(f"Plugin '{plugin_name}' routes loaded and registered with prefix '/{plugin_name.lower()}'")
+                        print(f"✓ Found create_blueprint function")
+                        # Check if create_blueprint accepts parameters
+                        import inspect
+                        sig = inspect.signature(routes_module.create_blueprint)
+                        if len(sig.parameters) > 0:
+                            print(f"✓ create_blueprint accepts parameters, passing app instance")
+                            plugin_blueprint = routes_module.create_blueprint(self)
+                        else:
+                            print(f"✓ create_blueprint takes no parameters")
+                            plugin_blueprint = routes_module.create_blueprint()
+                        url_prefix = f"/{plugin_name.lower()}"
+                        self.app.register_blueprint(plugin_blueprint, url_prefix=url_prefix)
+                        print(f"✅ Plugin '{plugin_name}' loaded and registered with prefix '{url_prefix}'")
+                        loaded_plugins += 1
                     else:
-                        print(f"Plugin '{plugin_name}' routes module (routes.py) missing 'create_blueprint' function.")
+                        print(f"❌ Plugin '{plugin_name}' routes module missing 'create_blueprint' function")
+                        
                 except ImportError as e:
-                    print(f"Error importing routes for plugin '{plugin_name}': {e}")
+                    print(f"❌ Import error for plugin '{plugin_name}': {e}")
+                    # Try alternative import path
+                    try:
+                        alt_module_name = f"plugins.{plugin_name}.routes"
+                        print(f"   Trying alternative import: {alt_module_name}")
+                        routes_module = importlib.import_module(alt_module_name)
+                        print(f"✓ Successfully imported {alt_module_name}")
+                        
+                        if hasattr(routes_module, 'create_blueprint'):
+                            print(f"✓ Found create_blueprint function")
+                            # Check if create_blueprint accepts parameters
+                            import inspect
+                            sig = inspect.signature(routes_module.create_blueprint)
+                            if len(sig.parameters) > 0:
+                                print(f"✓ create_blueprint accepts parameters, passing app instance")
+                                plugin_blueprint = routes_module.create_blueprint(self)
+                            else:
+                                print(f"✓ create_blueprint takes no parameters")
+                                plugin_blueprint = routes_module.create_blueprint()
+                            url_prefix = f"/{plugin_name.lower()}"
+                            self.app.register_blueprint(plugin_blueprint, url_prefix=url_prefix)
+                            print(f"✅ Plugin '{plugin_name}' loaded and registered with prefix '{url_prefix}'")
+                            loaded_plugins += 1
+                        else:
+                            print(f"❌ Plugin '{plugin_name}' routes module missing 'create_blueprint' function")
+                    except ImportError as e2:
+                        print(f"❌ Alternative import also failed: {e2}")
+                        print(f"   Module search path: {sys.path[:3]}...")  # Show first 3 paths
                 except Exception as e:
-                    print(f"Error registering blueprint for plugin '{plugin_name}': {e}")
+                    print(f"❌ Unexpected error for plugin '{plugin_name}': {e}")
+                    import traceback
+                    traceback.print_exc()
+            
+            print(f"\n=== PLUGIN LOADING SUMMARY ===")
+            print(f"Total plugins found: {len(plugin_directories)}")
+            print(f"Successfully loaded: {loaded_plugins}")
+            print(f"Failed to load: {len(plugin_directories) - loaded_plugins}")
+            
         else:
-            print(f"Plugins directory '{PLUGINS_DIR}' not found or is not a directory. Skipping plugin loading.")
+            print(f"❌ No plugins directory found in any location")
+            print("Searched paths:")
+            for path in [PLUGINS_DIR] + alternative_paths:
+                print(f"  - {path}")
+        
+        print("=== END PLUGIN LOADING DEBUG ===\n")
 
     def emitMessage(self, event: str, text: str):
         try:
