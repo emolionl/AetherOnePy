@@ -28,7 +28,9 @@ required_packages = [
     'sphinx_rtd_theme',
     'openai',
     'psutil',
-    'flasgger'
+    'flasgger',
+    'pywebview',
+    'screeninfo'
 ]
 
 

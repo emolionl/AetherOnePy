@@ -1,0 +1,423 @@
+name: Build AetherOnePy Executable with Plugins
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Create GitHub Release'
+        required: false
+        default: false
+        type: boolean
+      environment:
+        description: 'Plugin Environment'
+        required: false
+        default: 'ci'
+        type: choice
+        options:
+        - ci
+        - production
+        - development
+
+env:
+  PYTHON_VERSION: '3.11'
+  PYINSTALLER_VERSION: '6.14.2'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install base dependencies using existing setup.py
+      run: |
+        Write-Host "=== Installing Dependencies with setup.py ===" -ForegroundColor Green
+        
+        # First install PyInstaller
+        python -m pip install --upgrade pip
+        pip install pyinstaller==${{ env.PYINSTALLER_VERSION }}
+        
+        # Check if setup.py exists in py directory
+        if (Test-Path "py/setup.py") {
+            Write-Host "✓ Found existing setup.py" -ForegroundColor Green
+            
+            # Run the existing setup.py to install base packages
+            Write-Host "📦 Installing base packages..." -ForegroundColor Cyan
+            cd py
+            python setup.py
+            cd ..
+            
+            Write-Host "✅ Base packages installed via setup.py" -ForegroundColor Green
+        } else {
+            Write-Host "⚠️ setup.py not found, installing minimal dependencies" -ForegroundColor Yellow
+            pip install flask flask-cors flask-socketio pywebview screeninfo requests
+        }
+      shell: pwsh
+
+    - name: Setup plugin manager
+      run: |
+        Write-Host "=== Setting up Plugin Manager ===" -ForegroundColor Green
+        
+        # Make plugin manager executable
+        if (Test-Path "plugin_manager.py") {
+            Write-Host "✓ Plugin manager found" -ForegroundColor Green
+        } else {
+            Write-Host "❌ Plugin manager not found" -ForegroundColor Red
+            exit 1
+        }
+        
+        # Check plugin configuration
+        if (Test-Path "plugins-config.json") {
+            Write-Host "✓ Plugin configuration found" -ForegroundColor Green
+            
+            # Show plugin configuration summary
+            $config = Get-Content "plugins-config.json" | ConvertFrom-Json
+            $pluginCount = $config.plugins.PSObject.Properties.Count
+            Write-Host "📦 Found $pluginCount configured plugins" -ForegroundColor Cyan
+        } else {
+            Write-Host "❌ plugins-config.json not found" -ForegroundColor Red
+            exit 1
+        }
+      shell: pwsh
+
+    - name: List available plugins
+      run: |
+        Write-Host "=== Available Plugins ===" -ForegroundColor Cyan
+        python plugin_manager.py --environment ${{ github.event.inputs.environment || 'ci' }} --action list
+      shell: pwsh
+
+    - name: Download and install plugins
+      run: |
+        Write-Host "=== Installing Plugins ===" -ForegroundColor Green
+        Write-Host "Environment: ${{ github.event.inputs.environment || 'ci' }}" -ForegroundColor Cyan
+        
+        # Install plugins using the plugin manager
+        python plugin_manager.py --environment ${{ github.event.inputs.environment || 'ci' }} --action install
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "❌ Plugin installation failed" -ForegroundColor Red
+            exit 1
+        }
+        
+        Write-Host "✅ Plugin installation completed" -ForegroundColor Green
+      shell: pwsh
+
+    - name: Verify plugin installation
+      run: |
+        Write-Host "=== Verifying Plugin Installation ===" -ForegroundColor Cyan
+        
+        # Check if plugins directory exists and has content
+        if (Test-Path "py/plugins") {
+            $plugins = Get-ChildItem "py/plugins" -Directory
+            Write-Host "📁 Found $($plugins.Count) installed plugins:" -ForegroundColor Green
+            
+            foreach ($plugin in $plugins) {
+                Write-Host "  - $($plugin.Name)" -ForegroundColor White
+                
+                # Check for plugin.json or requirements.txt
+                $pluginJson = Join-Path $plugin.FullName "plugin.json"
+                $requirements = Join-Path $plugin.FullName "requirements.txt"
+                
+                if (Test-Path $pluginJson) {
+                    $info = Get-Content $pluginJson | ConvertFrom-Json
+                    Write-Host "    ✓ Name: $($info.name)" -ForegroundColor Gray
+                    Write-Host "    ✓ Version: $($info.version)" -ForegroundColor Gray
+                }
+                
+                if (Test-Path $requirements) {
+                    Write-Host "    📦 Installing plugin requirements..." -ForegroundColor Yellow
+                    pip install -r $requirements
+                }
+            }
+        } else {
+            Write-Host "⚠️ No plugins directory found" -ForegroundColor Yellow
+        }
+        
+        # Check data directory for downloaded data plugins
+        if (Test-Path "data") {
+            $dataItems = Get-ChildItem "data" -Directory
+            Write-Host "📊 Found $($dataItems.Count) data components:" -ForegroundColor Green
+            foreach ($item in $dataItems) {
+                Write-Host "  - $($item.Name)" -ForegroundColor White
+            }
+        }
+      shell: pwsh
+
+    - name: Install plugin dependencies (automatic)
+      run: |
+        Write-Host "=== Installing Plugin Dependencies ===" -ForegroundColor Green
+        
+        # The setup.py already has install_plugin_requirements() function
+        # After plugins are downloaded, run setup.py again to install their requirements
+        if (Test-Path "py/setup.py") {
+            Write-Host "🔄 Running setup.py again to install plugin requirements..." -ForegroundColor Cyan
+            cd py
+            python setup.py
+            cd ..
+            Write-Host "✅ Plugin requirements installed via setup.py" -ForegroundColor Green
+        } else {
+            Write-Host "⚠️ setup.py not found, using manual method" -ForegroundColor Yellow
+            
+            # Fallback: Manual installation of plugin requirements
+            $requirementFiles = Get-ChildItem -Path "py/plugins" -Filter "requirements.txt" -Recurse -ErrorAction SilentlyContinue
+            
+            foreach ($reqFile in $requirementFiles) {
+                Write-Host "📦 Installing requirements from: $($reqFile.FullName)" -ForegroundColor Cyan
+                try {
+                    pip install -r $reqFile.FullName
+                    Write-Host "✅ Successfully installed requirements from $($reqFile.Directory.Name)" -ForegroundColor Green
+                } catch {
+                    Write-Host "⚠️ Failed to install some requirements from $($reqFile.Directory.Name)" -ForegroundColor Yellow
+                }
+            }
+        }
+      shell: pwsh
+
+    - name: Clean build directories
+      run: |
+        Write-Host "=== Cleaning Build Directories ===" -ForegroundColor Yellow
+        if (Test-Path "dist") { Remove-Item "dist" -Recurse -Force -ErrorAction SilentlyContinue }
+        if (Test-Path "build") { Remove-Item "build" -Recurse -Force -ErrorAction SilentlyContinue }
+      shell: pwsh
+
+    - name: Build executable with plugins  
+      run: |
+        Write-Host "=== Building Executable with Plugins ===" -ForegroundColor Green
+        Write-Host "This may take several minutes..." -ForegroundColor Cyan
+        
+        try {
+            if (Test-Path "AetherOnePy.spec") {
+                Write-Host "Using spec file build..." -ForegroundColor Cyan
+                pyinstaller AetherOnePy.spec --noconfirm --log-level INFO
+            } else {
+                Write-Host "Using command line build..." -ForegroundColor Cyan
+                pyinstaller --name "AetherOnePy" --add-data "py;py" --add-data "data;data" --console --noupx desktop_launcher.py --log-level INFO
+            }
+            
+            Write-Host "✅ Build completed successfully" -ForegroundColor Green
+        } catch {
+            Write-Host "❌ Build failed: $_" -ForegroundColor Red
+            exit 1
+        }
+      shell: pwsh
+
+    - name: Create plugin inventory
+      run: |
+        Write-Host "=== Creating Plugin Inventory ===" -ForegroundColor Green
+        
+        $inventory = @{
+            "build_info" = @{
+                "timestamp" = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss UTC")
+                "environment" = "${{ github.event.inputs.environment || 'ci' }}"
+                "commit" = "${{ github.sha }}"
+                "python_version" = (python --version)
+            }
+            "plugins" = @{}
+            "data_components" = @{}
+        }
+        
+        # Inventory plugins
+        if (Test-Path "py/plugins") {
+            $plugins = Get-ChildItem "py/plugins" -Directory
+            foreach ($plugin in $plugins) {
+                $pluginInfo = @{
+                    "name" = $plugin.Name
+                    "path" = $plugin.FullName
+                    "size_mb" = [math]::Round((Get-ChildItem $plugin.FullName -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB, 2)
+                }
+                
+                $pluginJson = Join-Path $plugin.FullName "plugin.json"
+                if (Test-Path $pluginJson) {
+                    $info = Get-Content $pluginJson | ConvertFrom-Json
+                    $pluginInfo["version"] = $info.version
+                    $pluginInfo["description"] = $info.description
+                }
+                
+                $inventory.plugins[$plugin.Name] = $pluginInfo
+            }
+        }
+        
+        # Inventory data components
+        if (Test-Path "data") {
+            $dataItems = Get-ChildItem "data" -Directory
+            foreach ($item in $dataItems) {
+                $inventory.data_components[$item.Name] = @{
+                    "path" = $item.FullName
+                    "size_mb" = [math]::Round((Get-ChildItem $item.FullName -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB, 2)
+                }
+            }
+        }
+        
+        # Save inventory
+        $inventory | ConvertTo-Json -Depth 4 | Set-Content "dist/AetherOnePy/plugin_inventory.json"
+        Write-Host "✅ Plugin inventory saved" -ForegroundColor Green
+        
+        # Display summary
+        Write-Host "`n📊 Build Summary:" -ForegroundColor Cyan
+        Write-Host "  🔌 Plugins: $($inventory.plugins.Count)" -ForegroundColor White
+        Write-Host "  📊 Data Components: $($inventory.data_components.Count)" -ForegroundColor White
+      shell: pwsh
+
+    - name: Verify executable with plugins
+      run: |
+        Write-Host "=== Verifying Executable ===" -ForegroundColor Green
+        
+        $exePath = "dist\AetherOnePy\AetherOnePy.exe"
+        
+        if (Test-Path $exePath) {
+            $fileInfo = Get-Item $exePath
+            $sizeMB = [math]::Round($fileInfo.Length / 1MB, 2)
+            
+            Write-Host "✅ Executable created successfully!" -ForegroundColor Green
+            Write-Host "📁 Location: $($fileInfo.FullName)" -ForegroundColor White
+            Write-Host "📊 Size: $sizeMB MB" -ForegroundColor White
+            
+            # Check if plugins are included in the distribution
+            $distPlugins = "dist\AetherOnePy\py\plugins"
+            if (Test-Path $distPlugins) {
+                $pluginCount = (Get-ChildItem $distPlugins -Directory).Count
+                Write-Host "🔌 Bundled Plugins: $pluginCount" -ForegroundColor Green
+            }
+            
+            $distData = "dist\AetherOnePy\data"
+            if (Test-Path $distData) {
+                $dataCount = (Get-ChildItem $distData -Directory).Count  
+                Write-Host "📊 Bundled Data: $dataCount components" -ForegroundColor Green
+            }
+            
+        } else {
+            Write-Host "❌ Executable not found!" -ForegroundColor Red
+            exit 1
+        }
+      shell: pwsh
+
+    - name: Upload build with plugins
+      uses: actions/upload-artifact@v4
+      with:
+        name: AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}-${{ github.sha }}
+        path: dist/AetherOnePy/
+        retention-days: 30
+
+    - name: Create release with plugins
+      if: github.event.inputs.create_release == 'true' || startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}
+        name: AetherOnePy with Plugins ${{ github.ref_name }}
+        body: |
+          ## 🚀 AetherOnePy Desktop Application with Plugins
+          
+          This release includes the complete AetherOnePy application with all configured plugins automatically downloaded and integrated.
+          
+          ### 🔌 Included Plugins
+          All plugins are automatically downloaded from their respective repositories and bundled into the executable.
+          See `plugin_inventory.json` in the release for detailed plugin information.
+          
+          ### 📦 What's Included
+          - ✅ Complete desktop application
+          - ✅ All enabled plugins from plugins-config.json  
+          - ✅ Plugin dependencies automatically resolved
+          - ✅ Data components and rates database
+          
+          ### 🛠️ Installation
+          1. Download `AetherOnePy.exe` from the assets below
+          2. Run as Administrator (first time only)
+          3. Windows may show a security warning - click "More info" → "Run anyway"
+          4. All plugins are pre-installed and ready to use
+          
+          ### 🔍 Plugin Details
+          - Environment: ${{ github.event.inputs.environment || 'ci' }}
+          - Build Date: ${{ github.run_id }}
+          - Commit: ${{ github.sha }}
+          
+          ### 📋 Troubleshooting
+          - If plugins don't load, check the console for error messages
+          - Plugin inventory is available in `plugin_inventory.json`
+          - Contact support if specific plugins are missing
+          
+          ---
+          Built automatically with GitHub Actions 🤖
+        files: |
+          dist/AetherOnePy/AetherOnePy.exe
+          dist/AetherOnePy/plugin_inventory.json
+        draft: false
+        prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Job to validate plugin configuration
+  validate-plugins:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Validate plugin configuration
+      run: |
+        echo "=== Validating Plugin Configuration ==="
+        
+        if [ ! -f "plugins-config.json" ]; then
+          echo "❌ plugins-config.json not found"
+          exit 1
+        fi
+        
+        # Validate JSON syntax
+        python -m json.tool plugins-config.json > /dev/null
+        if [ $? -eq 0 ]; then
+          echo "✅ JSON syntax is valid"
+        else
+          echo "❌ Invalid JSON syntax"
+          exit 1
+        fi
+        
+        # Test plugin manager
+        python plugin_manager.py --action list --environment ci
+        
+        echo "✅ Plugin configuration validation passed"
+
+  # Optional: Test plugin installation on multiple platforms
+  test-plugin-installation:
+    needs: validate-plugins
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        environment: [ci, production]
+        
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Test plugin installation
+      run: |
+        echo "Testing plugin installation on ${{ matrix.os }} with ${{ matrix.environment }} environment"
+        python plugin_manager.py --environment ${{ matrix.environment }} --action install
+        
+        # Verify installation
+        python plugin_manager.py --environment ${{ matrix.environment }} --action list

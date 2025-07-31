@@ -1,0 +1,55 @@
+{
+  "plugins": {
+    "AetherOnePySocialPlugin": {
+      "name": "AetherOne Social Plugin",
+      "description": "Social features and community integration for AetherOnePy",
+      "version": "0.0.0",
+      "author": "Davor Radic",
+      "repository": {
+        "type": "github",
+        "url": "https://github.com/emolionl/AetherOnePySocialPlugin.git",
+        "branch": "main"
+      },
+      "enabled": true,
+      "required": false,
+      "install_path": "py/plugins/AetherOnePySocialPlugin"
+    },
+    "FinCompassPlugin": {
+      "name": "Financial Compass Plugin", 
+      "description": "Financial analysis and planning tools",
+      "version": "0.0.0",
+      "author": "Davor Radic",
+      "repository": {
+        "type": "github",
+        "url": "https://github.com/emolionl/FinCompassPlugin.git",
+        "branch": "main"
+      },
+      "enabled": true,
+      "required": false,
+      "install_path": "py/plugins/FinCompassPlugin"
+    }
+  },
+  "config": {
+    "plugin_directory": "py/plugins",
+    "data_directory": "data", 
+    "auto_update": true,
+    "verify_integrity": true,
+    "parallel_downloads": 3,
+    "timeout_seconds": 300
+  },
+  "environments": {
+    "development": {
+      "include_dev_plugins": true,
+      "use_dev_branches": true
+    },
+    "production": {
+      "include_dev_plugins": false,
+      "use_dev_branches": false
+    },
+    "ci": {
+      "include_dev_plugins": false,
+      "use_dev_branches": false,
+      "skip_optional": true
+    }
+  }
+}
