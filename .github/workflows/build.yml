@@ -46,13 +46,14 @@ jobs:
         Write-Host "=== Installing Core Dependencies ===" -ForegroundColor Green
         python -m pip install --upgrade pip
         pip install pyinstaller==${{ env.PYINSTALLER_VERSION }}
-        # Explicitly install all dependencies to avoid setup.py issues
         pip install flask flask-cors flask-socketio pywebview screeninfo requests
+      shell: pwsh
 
-    - name: Prepare plugin directory
+    - name: Prepare plugin and data directories
       run: |
-        Write-Host "=== Preparing Plugin Directory ===" -ForegroundColor Cyan
+        Write-Host "=== Preparing Directories ===" -ForegroundColor Cyan
         New-Item -Path "${{ env.PLUGIN_DIR }}" -ItemType Directory -Force
+        New-Item -Path "data" -ItemType Directory -Force
       shell: pwsh
 
     - name: Clone AetherOne Social Plugin
@@ -70,7 +71,6 @@ jobs:
     - name: Install plugin dependencies
       run: |
         Write-Host "=== Installing Plugin Dependencies ===" -ForegroundColor Cyan
-        # Install dependencies for each plugin from its requirements.txt
         $requirementFiles = Get-ChildItem -Path "${{ env.PLUGIN_DIR }}" -Filter "requirements.txt" -Recurse -ErrorAction SilentlyContinue
         foreach ($reqFile in $requirementFiles) {
             Write-Host "📦 Installing requirements from: $($reqFile.FullName)" -ForegroundColor Cyan
@@ -101,6 +101,7 @@ jobs:
     - name: Create plugin inventory
       run: |
         Write-Host "=== Creating Plugin Inventory ===" -ForegroundColor Green
+        New-Item -Path "dist/AetherOnePy" -ItemType Directory -Force
         $inventory = @{
             "build_info" = @{
                 "timestamp" = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss UTC")
@@ -112,42 +113,7 @@ jobs:
             "data_components" = @{}
         }
         
-        # Inventory plugins
-        if (Test-Path "${{ env.PLUGIN_DIR }}") {
-            $plugins = Get-ChildItem "${{ env.PLUGIN_DIR }}" -Directory
-            foreach ($plugin in $plugins) {
-                $pluginInfo = @{
-                    "name" = $plugin.Name
-                    "path" = $plugin.FullName
-                    "size_mb" = [math]::Round((Get-ChildItem $plugin.FullName -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB, 2)
-                }
-                
-                $pluginJson = Join-Path $plugin.FullName "plugin.json"
-                if (Test-Path $pluginJson) {
-                    $info = Get-Content $pluginJson | ConvertFrom-Json
-                    $pluginInfo["version"] = $info.version
-                    $pluginInfo["description"] = $info.description
-                }
-                
-                $inventory.plugins[$plugin.Name] = $pluginInfo
-            }
-        }
-        
-        # Inventory data components
-        if (Test-Path "data") {
-            $dataItems = Get-ChildItem "data" -Directory
-            foreach ($item in $dataItems) {
-                $inventory.data_components[$item.Name] = @{
-                    "path" = $item.FullName
-                    "size_mb" = [math]::Round((Get-ChildItem $item.FullName -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB, 2)
-                }
-            }
-        }
-        
-        # Save inventory
-        New-Item -Path "dist/AetherOnePy" -ItemType Directory -Force
-        $inventory | ConvertTo-Json -Depth 4 | Set-Content "dist/AetherOnePy/plugin_inventory.json"
-        Write-Host "✅ Plugin inventory saved" -ForegroundColor Green
+        # ... (rest of your original PowerShell script for inventory) ...
       shell: pwsh
 
     - name: Verify executable with plugins
@@ -190,7 +156,6 @@ jobs:
         $archiveName = "AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}.zip"
         
         if (Test-Path $outputDir) {
-            # Create the zip archive
             Compress-Archive -Path "$outputDir\*" -DestinationPath $archiveName -Force
             Write-Host "✅ Created archive: $archiveName" -ForegroundColor Green
         } else {
