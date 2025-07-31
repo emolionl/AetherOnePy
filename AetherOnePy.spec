@@ -26,25 +26,31 @@ except Exception as e:
     print(f"Directory creation error: {e}")
 
 # --- FIX FOR pythonnet/pywebview ---
-# PyInstaller hooks for pythonnet and clr_loader are often not enough.
-# We explicitly add the necessary directories to ensure all DLLs are bundled.
+# Get the paths for clr_loader, pythonnet, and pywebview using PyInstaller's utility functions
 print("=== Collecting pythonnet and clr_loader files ===")
 try:
-    # Get the paths for clr_loader and pythonnet
     clr_loader_path = get_package_paths('clr_loader')[1]
     pythonnet_path = get_package_paths('pythonnet')[1]
+    webview_path = get_package_paths('webview')[1]
     
     print(f"clr_loader path: {clr_loader_path}")
     print(f"pythonnet path: {pythonnet_path}")
+    print(f"pywebview path: {webview_path}")
     
     # Add the entire clr_loader and pythonnet directories to the bundle
     clr_loader_data = (clr_loader_path, "clr_loader")
     pythonnet_data = (pythonnet_path, "pythonnet")
     
+    # Add the necessary webview files
+    webview_dll = (os.path.join(webview_path, "platforms", "edgehtml.dll"), "webview/platforms")
+    webview_host = (os.path.join(webview_path, "platforms", "webviewhost.exe"), "webview/platforms")
+    
 except Exception as e:
-    print(f"Warning: Could not find clr_loader or pythonnet packages. The build might fail. Error: {e}")
+    print(f"Warning: Could not find package. The build might fail. Error: {e}")
     clr_loader_data = None
     pythonnet_data = None
+    webview_dll = None
+    webview_host = None
 
 # Collect data files from the source tree
 datas = [
@@ -57,12 +63,10 @@ if clr_loader_data:
     datas.append(clr_loader_data)
 if pythonnet_data:
     datas.append(pythonnet_data)
-
-# Additional data files for webview to function correctly
-datas.extend([
-    (os.path.join(sys.prefix, "Lib", "site-packages", "webview", "platforms", "edgehtml.dll"), "webview/platforms"),
-    (os.path.join(sys.prefix, "Lib", "site-packages", "webview", "platforms", "webviewhost.exe"), "webview/platforms")
-])
+if webview_dll:
+    datas.append(webview_dll)
+if webview_host:
+    datas.append(webview_host)
 
 excludes = [
     'matplotlib', 'scipy', 'opencv-python', 'cv2', 'pygame', 
