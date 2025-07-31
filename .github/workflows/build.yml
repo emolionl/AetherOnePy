@@ -41,7 +41,7 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ env.PYTHON_VERSION }}
-        cache: 'pip'
+        # Remove cache since we use setup.py instead of requirements.txt
 
     - name: Install base dependencies using existing setup.py
       run: |
