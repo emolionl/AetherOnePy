@@ -97,6 +97,7 @@ jobs:
     - name: List available plugins
       run: |
         Write-Host "=== Available Plugins ===" -ForegroundColor Cyan
+        $env:PYTHONIOENCODING = "utf-8"
         python plugin_manager.py --environment ${{ github.event.inputs.environment || 'ci' }} --action list
       shell: pwsh
 
@@ -104,6 +105,9 @@ jobs:
       run: |
         Write-Host "=== Installing Plugins ===" -ForegroundColor Green
         Write-Host "Environment: ${{ github.event.inputs.environment || 'ci' }}" -ForegroundColor Cyan
+        
+        # Set UTF-8 encoding for Python output
+        $env:PYTHONIOENCODING = "utf-8"
         
         # Install plugins using the plugin manager
         python plugin_manager.py --environment ${{ github.event.inputs.environment || 'ci' }} --action install

@@ -18,6 +18,12 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import argparse
 
+# Windows compatibility for Unicode output
+if sys.platform == "win32":
+    import codecs
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
+
 
 class PluginManager:
     def __init__(self, config_file: str = "plugins-config.json", environment: str = "production"):
@@ -72,7 +78,7 @@ class PluginManager:
     def clone_repository(self, repo_url: str, branch: str, target_path: str) -> bool:
         """Clone a Git repository to target path"""
         try:
-            print(f"  📥 Cloning {repo_url} (branch: {branch})")
+            print(f"  [DOWNLOAD] Cloning {repo_url} (branch: {branch})")
             
             # Ensure target directory exists
             os.makedirs(os.path.dirname(target_path), exist_ok=True)
@@ -93,24 +99,24 @@ class PluginManager:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
             
             if result.returncode == 0:
-                print(f"  ✅ Successfully cloned to {target_path}")
+                print(f"  [SUCCESS] Successfully cloned to {target_path}")
                 
                 # Remove .git directory to save space (optional)
                 git_dir = os.path.join(target_path, ".git")
                 if os.path.exists(git_dir):
                     shutil.rmtree(git_dir)
-                    print(f"  🧹 Cleaned up .git directory")
+                    print(f"  [CLEANUP] Cleaned up .git directory")
                 
                 return True
             else:
-                print(f"  ❌ Git clone failed: {result.stderr}")
+                print(f"  [ERROR] Git clone failed: {result.stderr}")
                 return False
                 
         except subprocess.TimeoutExpired:
-            print(f"  ⏰ Clone timed out for {repo_url}")
+            print(f"  [TIMEOUT] Clone timed out for {repo_url}")
             return False
         except Exception as e:
-            print(f"  ❌ Clone error: {e}")
+            print(f"  [ERROR] Clone error: {e}")
             return False
     
     def download_archive(self, repo_url: str, branch: str, target_path: str) -> bool:
@@ -219,16 +225,16 @@ class PluginManager:
     
     def install_plugin(self, plugin_name: str, plugin_config: Dict) -> bool:
         """Install a single plugin"""
-        print(f"\n🔧 Installing plugin: {plugin_config.get('name', plugin_name)}")
+        print(f"\n[PLUGIN] Installing plugin: {plugin_config.get('name', plugin_name)}")
         
         if not self.should_install_plugin(plugin_config):
-            print(f"  ⏭️ Skipping {plugin_name} (disabled or not required for {self.environment})")
+            print(f"  [SKIP] Skipping {plugin_name} (disabled or not required for {self.environment})")
             return True
         
         # Get repository info
         repo_info = plugin_config.get("repository", {})
         if not repo_info:
-            print(f"  ❌ No repository information for {plugin_name}")
+            print(f"  [ERROR] No repository information for {plugin_name}")
             return False
         
         repo_url = repo_info.get("url")
@@ -236,7 +242,7 @@ class PluginManager:
         install_path = plugin_config.get("install_path")
         
         if not all([repo_url, install_path]):
-            print(f"  ❌ Missing required info: url={repo_url}, path={install_path}")
+            print(f"  [ERROR] Missing required info: url={repo_url}, path={install_path}")
             return False
         
         # Convert to absolute path
@@ -248,11 +254,11 @@ class PluginManager:
             success = self.clone_repository(repo_url, branch, target_path)
         
         if not success:
-            print(f"  🔄 Git clone failed, trying archive download...")
+            print(f"  [FALLBACK] Git clone failed, trying archive download...")
             success = self.download_archive(repo_url, branch, target_path)
         
         if not success:
-            print(f"  ❌ Failed to download {plugin_name}")
+            print(f"  [ERROR] Failed to download {plugin_name}")
             return False
         
         # Install dependencies
@@ -260,19 +266,19 @@ class PluginManager:
         
         # Verify installation
         if os.path.exists(target_path):
-            print(f"  ✅ Plugin {plugin_name} installed successfully")
+            print(f"  [SUCCESS] Plugin {plugin_name} installed successfully")
             return True
         else:
-            print(f"  ❌ Plugin installation verification failed")
+            print(f"  [ERROR] Plugin installation verification failed")
             return False
     
     def install_all_plugins(self) -> Tuple[int, int]:
         """Install all configured plugins"""
-        print("🚀 Starting plugin installation...")
+        print("[INSTALL] Starting plugin installation...")
         
         plugins = self.config.get("plugins", {})
         if not plugins:
-            print("📝 No plugins configured")
+            print("[INFO] No plugins configured")
             return 0, 0
         
         installed = 0
@@ -285,24 +291,24 @@ class PluginManager:
                 else:
                     failed += 1
             except Exception as e:
-                print(f"❌ Unexpected error installing {plugin_name}: {e}")
+                print(f"[ERROR] Unexpected error installing {plugin_name}: {e}")
                 failed += 1
         
         # After all plugins are installed, run setup.py to install their requirements
         if installed > 0:
-            print(f"\n🔧 Installing plugin dependencies...")
+            print(f"\n[DEPENDENCIES] Installing plugin dependencies...")
             self.run_setup_py_for_plugins()
         
-        print(f"\n📊 Installation Summary:")
-        print(f"  ✅ Installed: {installed}")
-        print(f"  ❌ Failed: {failed}")
-        print(f"  📁 Total: {len(plugins)}")
+        print(f"\n[SUMMARY] Installation Summary:")
+        print(f"  [SUCCESS] Installed: {installed}")
+        print(f"  [FAILED] Failed: {failed}")
+        print(f"  [TOTAL] Total: {len(plugins)}")
         
         return installed, failed
     
     def list_plugins(self) -> None:
         """List all configured plugins with their status"""
-        print("📋 Configured Plugins:")
+        print("[PLUGINS] Configured Plugins:")
         
         plugins = self.config.get("plugins", {})
         if not plugins:
@@ -310,11 +316,11 @@ class PluginManager:
             return
         
         for plugin_name, plugin_config in plugins.items():
-            status = "✅ ENABLED" if plugin_config.get("enabled", True) else "❌ DISABLED"
-            required = "🔒 REQUIRED" if plugin_config.get("required", False) else "🔓 OPTIONAL"
+            status = "[ENABLED]" if plugin_config.get("enabled", True) else "[DISABLED]"
+            required = "[REQUIRED]" if plugin_config.get("required", False) else "[OPTIONAL]"
             
             install_path = plugin_config.get("install_path", "")
-            installed = "📁 INSTALLED" if os.path.exists(install_path) else "📂 NOT INSTALLED"
+            installed = "[INSTALLED]" if os.path.exists(install_path) else "[NOT INSTALLED]"
             
             print(f"  {plugin_name}:")
             print(f"    Name: {plugin_config.get('name', 'N/A')}")
@@ -325,7 +331,7 @@ class PluginManager:
     
     def clean_plugins(self) -> None:
         """Remove all installed plugins"""
-        print("🧹 Cleaning installed plugins...")
+        print("[CLEANUP] Cleaning installed plugins...")
         
         plugins = self.config.get("plugins", {})
         removed = 0
@@ -335,12 +341,12 @@ class PluginManager:
             if install_path and os.path.exists(install_path):
                 try:
                     shutil.rmtree(install_path)
-                    print(f"  🗑️ Removed {plugin_name}")
+                    print(f"  [REMOVED] {plugin_name}")
                     removed += 1
                 except Exception as e:
-                    print(f"  ❌ Failed to remove {plugin_name}: {e}")
+                    print(f"  [ERROR] Failed to remove {plugin_name}: {e}")
         
-        print(f"🧹 Cleaned {removed} plugins")
+        print(f"[CLEANUP] Cleaned {removed} plugins")
 
 
 def main():
