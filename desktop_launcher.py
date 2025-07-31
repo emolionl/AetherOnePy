@@ -69,6 +69,8 @@ def main():
     global flask_process
     flask_process = None
     flask_process = None
+
+    os.makedirs('data', exist_ok=True)
     
     try:
         # Find Python

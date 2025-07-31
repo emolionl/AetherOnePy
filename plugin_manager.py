@@ -126,7 +126,8 @@ class PluginManager:
             
             # Convert GitHub URL to archive URL
             if "github.com" in repo_url:
-                archive_url = repo_url.replace(".git", "").replace("github.com", "github.com") + f"/archive/refs/heads/{branch}.zip"
+                #archive_url = repo_url.replace(".git", "").replace("github.com", "github.com") + f"/archive/refs/heads/{branch}.zip"
+                archive_url = repo_url.replace(".git", "") + f"/archive/refs/heads/{branch}.zip"
             else:
                 print(f"  ❌ Archive download not supported for {repo_url}")
                 return False
