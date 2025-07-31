@@ -59,16 +59,6 @@ def collect_data_files():
     else:
         print(f"Warning: UI directory not found at {ui_path}. The UI might be missing.")
     
-    # --- NEW: Explicitly collect pythonnet and clr_loader dependencies ---
-    if os.path.exists('pythonnet'):
-        datas.append(('pythonnet', 'pythonnet'))
-        print("Collected pythonnet dependencies")
-    
-    if os.path.exists('clr_loader'):
-        datas.append(('clr_loader', 'clr_loader'))
-        print("Collected clr_loader dependencies")
-    # ----------------------------------------------------------------------
-    
     return datas
 
 # Call the function to populate the datas list
@@ -81,11 +71,12 @@ excludes = [
     'git', 'eventlet', 'numpy', 'pandas', 'tkinter', 'test', 'unittest'
 ]
 
-# Hidden imports
+# Hidden imports - The fix is to add 'pythonnet' and 'clr_loader' here
 hiddenimports = [
     'flask', 'webview', 'screeninfo', 'subprocess', 'time', 'sys', 'os',
     'urllib.request', 'urllib.error', 'traceback', 'threading', 'shutil', 
-    'queue', 'flask.templating', 'jinja2', 'werkzeug', 'flask_cors', 'flask_socketio'
+    'queue', 'flask.templating', 'jinja2', 'werkzeug', 'flask_cors', 'flask_socketio',
+    'pythonnet', 'clr_loader'
 ]
 
 a = Analysis(
