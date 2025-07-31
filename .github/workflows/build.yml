@@ -62,8 +62,16 @@ jobs:
         $config = Get-Content -Path "plugins-config.json" | ConvertFrom-Json
         $environment = "${{ github.event.inputs.environment || 'ci' }}"
         
+        Write-Host "Environment: $environment" -ForegroundColor Cyan
+        Write-Host "Plugin directory: ${{ env.PLUGIN_DIR }}" -ForegroundColor Cyan
+        
         foreach ($pluginKey in $config.plugins.PSObject.Properties.Name) {
             $plugin = $config.plugins.$pluginKey
+            
+            Write-Host "`n--- Processing plugin: $pluginKey ---" -ForegroundColor White
+            Write-Host "Plugin name: $($plugin.name)" -ForegroundColor Gray
+            Write-Host "Enabled: $($plugin.enabled)" -ForegroundColor Gray
+            Write-Host "Required: $($plugin.required)" -ForegroundColor Gray
             
             if (-not $plugin.enabled) {
                 Write-Host "⏭️ Skipping disabled plugin: $($plugin.name)" -ForegroundColor Yellow
@@ -79,15 +87,66 @@ jobs:
             $branch = $plugin.repository.branch
             $installPath = "${{ env.PLUGIN_DIR }}/$pluginKey"
             
+            Write-Host "Repository: $repoUrl" -ForegroundColor Gray
+            Write-Host "Branch: $branch" -ForegroundColor Gray
+            Write-Host "Install path: $installPath" -ForegroundColor Gray
+            
+            # Ensure parent directory exists
+            $parentDir = Split-Path -Parent $installPath
+            if (-not (Test-Path $parentDir)) {
+                New-Item -Path $parentDir -ItemType Directory -Force
+                Write-Host "Created parent directory: $parentDir" -ForegroundColor Gray
+            }
+            
             Write-Host "📦 Cloning $($plugin.name) from $repoUrl" -ForegroundColor Cyan
-            git clone --branch $branch $repoUrl $installPath
+            git clone --branch $branch --depth 1 $repoUrl $installPath
             
             if ($LASTEXITCODE -eq 0) {
                 Write-Host "✅ Successfully cloned $($plugin.name)" -ForegroundColor Green
+                
+                # Verify plugin structure
+                $routesFile = Join-Path $installPath "routes.py"
+                $initFile = Join-Path $installPath "__init__.py"
+                
+                if (Test-Path $routesFile) {
+                    Write-Host "  ✓ Found routes.py" -ForegroundColor Green
+                } else {
+                    Write-Host "  ⚠️ Missing routes.py" -ForegroundColor Yellow
+                }
+                
+                if (Test-Path $initFile) {
+                    Write-Host "  ✓ Found __init__.py" -ForegroundColor Green
+                } else {
+                    Write-Host "  ⚠️ Missing __init__.py" -ForegroundColor Yellow
+                }
+                
+                # List plugin contents for debugging
+                Write-Host "  Plugin contents:" -ForegroundColor Gray
+                Get-ChildItem -Path $installPath -Name | ForEach-Object {
+                    Write-Host "    - $_" -ForegroundColor DarkGray
+                }
+                
             } else {
                 Write-Host "❌ Failed to clone $($plugin.name)" -ForegroundColor Red
+                Write-Host "Git error code: $LASTEXITCODE" -ForegroundColor Red
                 exit 1
             }
+        }
+        
+        # Final verification - list all plugin directories
+        Write-Host "`n=== Final Plugin Directory Structure ===" -ForegroundColor Cyan
+        if (Test-Path "${{ env.PLUGIN_DIR }}") {
+            Get-ChildItem -Path "${{ env.PLUGIN_DIR }}" -Directory | ForEach-Object {
+                Write-Host "Plugin directory: $($_.Name)" -ForegroundColor Green
+                $routesPath = Join-Path $_.FullName "routes.py"
+                if (Test-Path $routesPath) {
+                    Write-Host "  ✓ Has routes.py" -ForegroundColor Green
+                } else {
+                    Write-Host "  ✗ Missing routes.py" -ForegroundColor Red
+                }
+            }
+        } else {
+            Write-Host "❌ Plugin directory not found: ${{ env.PLUGIN_DIR }}" -ForegroundColor Red
         }
       shell: pwsh
         
