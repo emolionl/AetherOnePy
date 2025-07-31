@@ -220,8 +220,8 @@ jobs:
                 pyinstaller AetherOnePy.spec --noconfirm --log-level INFO
             } else {
                 Write-Host "Using command line build..." -ForegroundColor Cyan
-                # PyInstaller builds in --onedir mode by default, which is what we want.
-                pyinstaller --name "AetherOnePy" --add-data "py;py" --add-data "data;data" --console --noupx desktop_launcher.py --log-level INFO
+                # New: Add the UI directory to the --add-data flag
+                pyinstaller --name "AetherOnePy" --add-data "py;py" --add-data "data;data" --add-data "ui/dist/ui/browser;ui/dist/ui/browser" --console --noupx desktop_launcher.py --log-level INFO
             }
             
             Write-Host "✅ Build completed successfully" -ForegroundColor Green
