@@ -209,7 +209,7 @@ jobs:
         if (Test-Path "build") { Remove-Item "build" -Recurse -Force -ErrorAction SilentlyContinue }
       shell: pwsh
 
-    - name: Build executable with plugins  
+    - name: Build executable with plugins
       run: |
         Write-Host "=== Building Executable with Plugins ===" -ForegroundColor Green
         Write-Host "This may take several minutes..." -ForegroundColor Cyan
@@ -220,6 +220,7 @@ jobs:
                 pyinstaller AetherOnePy.spec --noconfirm --log-level INFO
             } else {
                 Write-Host "Using command line build..." -ForegroundColor Cyan
+                # PyInstaller builds in --onedir mode by default, which is what we want.
                 pyinstaller --name "AetherOnePy" --add-data "py;py" --add-data "data;data" --console --noupx desktop_launcher.py --log-level INFO
             }
             
@@ -320,11 +321,33 @@ jobs:
         }
       shell: pwsh
 
+    - name: Archive build directory
+      run: |
+        Write-Host "=== Archiving Build Directory ===" -ForegroundColor Green
+        
+        $outputDir = "dist/AetherOnePy"
+        $archiveName = "AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}.zip"
+        
+        if (Test-Path $outputDir) {
+            # Remove old archive if it exists
+            if (Test-Path $archiveName) {
+                Remove-Item -Path $archiveName
+            }
+            
+            # Create the zip archive
+            Compress-Archive -Path "$outputDir\*" -DestinationPath $archiveName -Force
+            Write-Host "✅ Created archive: $archiveName" -ForegroundColor Green
+        } else {
+            Write-Host "❌ Build directory 'dist/AetherOnePy' not found!" -ForegroundColor Red
+            exit 1
+        }
+      shell: pwsh
+
     - name: Upload build with plugins
       uses: actions/upload-artifact@v4
       with:
         name: AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}-${{ github.sha }}
-        path: dist/AetherOnePy/
+        path: AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}.zip
         retention-days: 30
 
     - name: Create release with plugins
@@ -344,15 +367,16 @@ jobs:
           
           ### 📦 What's Included
           - ✅ Complete desktop application
-          - ✅ All enabled plugins from plugins-config.json  
+          - ✅ All enabled plugins from plugins-config.json
           - ✅ Plugin dependencies automatically resolved
           - ✅ Data components and rates database
           
           ### 🛠️ Installation
-          1. Download `AetherOnePy.exe` from the assets below
-          2. Run as Administrator (first time only)
-          3. Windows may show a security warning - click "More info" → "Run anyway"
-          4. All plugins are pre-installed and ready to use
+          1. Download `AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}.zip` from the assets below.
+          2. Extract the contents to a folder.
+          3. Run `AetherOnePy.exe`
+          4. Windows may show a security warning - click "More info" → "Run anyway"
+          5. All plugins are pre-installed and ready to use
           
           ### 🔍 Plugin Details
           - Environment: ${{ github.event.inputs.environment || 'ci' }}
@@ -367,8 +391,7 @@ jobs:
           ---
           Built automatically with GitHub Actions 🤖
         files: |
-          dist/AetherOnePy/AetherOnePy.exe
-          dist/AetherOnePy/plugin_inventory.json
+          AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}.zip
         draft: false
         prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
       env:
