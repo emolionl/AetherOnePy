@@ -171,15 +171,15 @@ class AetherOnePy:
             for alt_path in alternative_paths:
                 print(f"  Checking: {alt_path}")
                 if os.path.exists(alt_path) and os.path.isdir(alt_path):
-                    print(f"  ✓ Found plugins at: {alt_path}")
+                    print(f"  [OK] Found plugins at: {alt_path}")
                     plugin_path_found = alt_path
                     break
                 else:
-                    print(f"  ✗ Not found")
+                    print(f"  [MISSING] Not found")
         
         if plugin_path_found:
             PLUGINS_DIR = plugin_path_found
-            print(f"✓ Using plugins directory: {PLUGINS_DIR}")
+            print(f"[OK] Using plugins directory: {PLUGINS_DIR}")
             
             # List all items in plugins directory
             all_items = os.listdir(PLUGINS_DIR)
@@ -189,7 +189,7 @@ class AetherOnePy:
             print(f"Plugin directories found: {plugin_directories}")
             
             if not plugin_directories:
-                print("⚠️ No plugin directories found")
+                print("[WARNING] No plugin directories found")
                 return
             
             # Add plugins directory to Python path for imports
@@ -208,11 +208,11 @@ class AetherOnePy:
                 routes_file = os.path.join(plugin_path, 'routes.py')
                 init_file = os.path.join(plugin_path, '__init__.py')
                 
-                print(f"Checking for routes.py: {'✓' if os.path.exists(routes_file) else '✗'}")
-                print(f"Checking for __init__.py: {'✓' if os.path.exists(init_file) else '✗'}")
+                print(f"Checking for routes.py: {'[OK]' if os.path.exists(routes_file) else '[MISSING]'}")
+                print(f"Checking for __init__.py: {'[OK]' if os.path.exists(init_file) else '[MISSING]'}")
                 
                 if not os.path.exists(routes_file):
-                    print(f"⚠️ Skipping {plugin_name}: routes.py not found")
+                    print(f"[WARNING] Skipping {plugin_name}: routes.py not found")
                     continue
                 
                 routes_module_name = f"py.plugins.{plugin_name}.routes"
@@ -220,57 +220,57 @@ class AetherOnePy:
                 
                 try:
                     routes_module = importlib.import_module(routes_module_name)
-                    print(f"✓ Successfully imported {routes_module_name}")
+                    print(f"[OK] Successfully imported {routes_module_name}")
                     
                     if hasattr(routes_module, 'create_blueprint'):
-                        print(f"✓ Found create_blueprint function")
+                        print(f"[OK] Found create_blueprint function")
                         # Check if create_blueprint accepts parameters
                         import inspect
                         sig = inspect.signature(routes_module.create_blueprint)
                         if len(sig.parameters) > 0:
-                            print(f"✓ create_blueprint accepts parameters, passing app instance")
+                            print(f"[OK] create_blueprint accepts parameters, passing app instance")
                             plugin_blueprint = routes_module.create_blueprint(self)
                         else:
-                            print(f"✓ create_blueprint takes no parameters")
+                            print(f"[OK] create_blueprint takes no parameters")
                             plugin_blueprint = routes_module.create_blueprint()
                         url_prefix = f"/{plugin_name.lower()}"
                         self.app.register_blueprint(plugin_blueprint, url_prefix=url_prefix)
-                        print(f"✅ Plugin '{plugin_name}' loaded and registered with prefix '{url_prefix}'")
+                        print(f"[SUCCESS] Plugin '{plugin_name}' loaded and registered with prefix '{url_prefix}'")
                         loaded_plugins += 1
                     else:
-                        print(f"❌ Plugin '{plugin_name}' routes module missing 'create_blueprint' function")
+                        print(f"[ERROR] Plugin '{plugin_name}' routes module missing 'create_blueprint' function")
                         
                 except ImportError as e:
-                    print(f"❌ Import error for plugin '{plugin_name}': {e}")
+                    print(f"[ERROR] Import error for plugin '{plugin_name}': {e}")
                     # Try alternative import path
                     try:
                         alt_module_name = f"plugins.{plugin_name}.routes"
                         print(f"   Trying alternative import: {alt_module_name}")
                         routes_module = importlib.import_module(alt_module_name)
-                        print(f"✓ Successfully imported {alt_module_name}")
+                        print(f"[OK] Successfully imported {alt_module_name}")
                         
                         if hasattr(routes_module, 'create_blueprint'):
-                            print(f"✓ Found create_blueprint function")
+                            print(f"[OK] Found create_blueprint function")
                             # Check if create_blueprint accepts parameters
                             import inspect
                             sig = inspect.signature(routes_module.create_blueprint)
                             if len(sig.parameters) > 0:
-                                print(f"✓ create_blueprint accepts parameters, passing app instance")
+                                print(f"[OK] create_blueprint accepts parameters, passing app instance")
                                 plugin_blueprint = routes_module.create_blueprint(self)
                             else:
-                                print(f"✓ create_blueprint takes no parameters")
+                                print(f"[OK] create_blueprint takes no parameters")
                                 plugin_blueprint = routes_module.create_blueprint()
                             url_prefix = f"/{plugin_name.lower()}"
                             self.app.register_blueprint(plugin_blueprint, url_prefix=url_prefix)
-                            print(f"✅ Plugin '{plugin_name}' loaded and registered with prefix '{url_prefix}'")
+                            print(f"[SUCCESS] Plugin '{plugin_name}' loaded and registered with prefix '{url_prefix}'")
                             loaded_plugins += 1
                         else:
-                            print(f"❌ Plugin '{plugin_name}' routes module missing 'create_blueprint' function")
+                            print(f"[ERROR] Plugin '{plugin_name}' routes module missing 'create_blueprint' function")
                     except ImportError as e2:
-                        print(f"❌ Alternative import also failed: {e2}")
+                        print(f"[ERROR] Alternative import also failed: {e2}")
                         print(f"   Module search path: {sys.path[:3]}...")  # Show first 3 paths
                 except Exception as e:
-                    print(f"❌ Unexpected error for plugin '{plugin_name}': {e}")
+                    print(f"[ERROR] Unexpected error for plugin '{plugin_name}': {e}")
                     import traceback
                     traceback.print_exc()
             
@@ -280,7 +280,7 @@ class AetherOnePy:
             print(f"Failed to load: {len(plugin_directories) - loaded_plugins}")
             
         else:
-            print(f"❌ No plugins directory found in any location")
+            print(f"[ERROR] No plugins directory found in any location")
             print("Searched paths:")
             for path in [PLUGINS_DIR] + alternative_paths:
                 print(f"  - {path}")
