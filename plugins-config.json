@@ -8,7 +8,7 @@
       "repository": {
         "type": "github",
         "url": "https://github.com/emolionl/AetherOnePySocialPlugin.git",
-        "branch": "main"
+        "branch": "master"
       },
       "enabled": true,
       "required": false,
@@ -22,7 +22,7 @@
       "repository": {
         "type": "github",
         "url": "https://github.com/emolionl/FinCompassPlugin.git",
-        "branch": "main"
+        "branch": "master"
       },
       "enabled": true,
       "required": false,
