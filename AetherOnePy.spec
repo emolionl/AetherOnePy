@@ -59,6 +59,16 @@ def collect_data_files():
     else:
         print(f"Warning: UI directory not found at {ui_path}. The UI might be missing.")
     
+    # --- NEW: Explicitly collect pythonnet and clr_loader dependencies ---
+    if os.path.exists('pythonnet'):
+        datas.append(('pythonnet', 'pythonnet'))
+        print("Collected pythonnet dependencies")
+    
+    if os.path.exists('clr_loader'):
+        datas.append(('clr_loader', 'clr_loader'))
+        print("Collected clr_loader dependencies")
+    # ----------------------------------------------------------------------
+    
     return datas
 
 # Call the function to populate the datas list
