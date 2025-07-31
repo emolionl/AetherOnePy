@@ -42,7 +42,7 @@ jobs:
         python-version: ${{ env.PYTHON_VERSION }}
 
     - name: Install dependencies (explicitly)
-       run: |
+      run: |
         Write-Host "=== Installing Core Dependencies ===" -ForegroundColor Green
         python -m pip install --upgrade pip
         pip install pyinstaller==${{ env.PYINSTALLER_VERSION }}
@@ -57,15 +57,11 @@ jobs:
       shell: pwsh
 
     - name: Clone AetherOne Social Plugin
-      run: |
-        Write-Host "=== Cloning AetherOne Social Plugin ===" -ForegroundColor Cyan
-        git clone https://github.com/emolionl/AetherOnePySocialPlugin.git ${{ env.PLUGIN_DIR }}/AetherOnePySocialPlugin
+      run: git clone https://github.com/emolionl/AetherOnePySocialPlugin.git ${{ env.PLUGIN_DIR }}/AetherOnePySocialPlugin
       shell: pwsh
 
     - name: Clone Financial Compass Plugin
-      run: |
-        Write-Host "=== Cloning Financial Compass Plugin ===" -ForegroundColor Cyan
-        git clone https://github.com/emolionl/FinCompassPlugin.git ${{ env.PLUGIN_DIR }}/FinCompassPlugin
+      run: git clone https://github.com/emolionl/FinCompassPlugin.git ${{ env.PLUGIN_DIR }}/FinCompassPlugin
       shell: pwsh
         
     - name: Install plugin dependencies
@@ -85,63 +81,50 @@ jobs:
         npm install
         npm run build -- --base-href=/
         cd ..
-
+      shell: pwsh
+    
     - name: Clean build directories
       run: |
-        Write-Host "=== Cleaning Build Directories ===" -ForegroundColor Yellow
-        if (Test-Path "dist") { Remove-Item "dist" -Recurse -Force -ErrorAction SilentlyContinue }
-        if (Test-Path "build") { Remove-Item "build" -Recurse -Force -ErrorAction SilentlyContinue }
+        if (Test-Path "dist") { Remove-Item -Path "dist" -Recurse -Force }
+        if (Test-Path "build") { Remove-Item -Path "build" -Recurse -Force }
       shell: pwsh
 
     - name: Build Executable with plugins
-      run: |
-        Write-Host "=== Building Executable ===" -ForegroundColor Green
-        pyinstaller AetherOnePy.spec --noconfirm --log-level INFO
+      run: pyinstaller AetherOnePy.spec --noconfirm --log-level INFO
+      shell: pwsh
 
-    - name: Create plugin inventory
+    - name: Create plugin inventory and copy plugins
       run: |
         Write-Host "=== Creating Plugin Inventory ===" -ForegroundColor Green
-        New-Item -Path "dist/AetherOnePy" -ItemType Directory -Force
         $inventory = @{
-            "build_info" = @{
-                "timestamp" = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss UTC")
-                "environment" = "${{ github.event.inputs.environment || 'ci' }}"
-                "commit" = "${{ github.sha }}"
-                "python_version" = (python --version)
+            build_info = @{
+                timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss UTC")
+                environment = "${{ github.event.inputs.environment || 'ci' }}"
+                commit = "${{ github.sha }}"
+                python_version = python --version
             }
-            "plugins" = @{}
-            "data_components" = @{}
+            plugins = @{}
+            data_components = @{}
         }
         
-        # ... (rest of your original PowerShell script for inventory) ...
+        $json = $inventory | ConvertTo-Json -Depth 5
+        $json | Out-File -FilePath "dist/AetherOnePy/build_inventory.json"
+        
+        Write-Host "Created build_inventory.json"
+        
+        Write-Host "=== Copying plugins to dist ===" -ForegroundColor Green
+        if (Test-Path "${{ env.PLUGIN_DIR }}") {
+            Copy-Item -Path "${{ env.PLUGIN_DIR }}" -Destination "dist/AetherOnePy/py" -Recurse -Force
+        }
       shell: pwsh
 
     - name: Verify executable with plugins
       run: |
         Write-Host "=== Verifying Executable ===" -ForegroundColor Green
-        
         $exePath = "dist\AetherOnePy\AetherOnePy.exe"
-        
         if (Test-Path $exePath) {
-            $fileInfo = Get-Item $exePath
-            $sizeMB = [math]::Round($fileInfo.Length / 1MB, 2)
-            
             Write-Host "✅ Executable created successfully!" -ForegroundColor Green
-            Write-Host "📁 Location: $($fileInfo.FullName)" -ForegroundColor White
-            Write-Host "📊 Size: $sizeMB MB" -ForegroundColor White
-            
-            # Check if plugins are included in the distribution
-            $distPlugins = "dist\AetherOnePy\py\plugins"
-            if (Test-Path $distPlugins) {
-                $pluginCount = (Get-ChildItem $distPlugins -Directory).Count
-                Write-Host "🔌 Bundled Plugins: $pluginCount" -ForegroundColor Green
-            }
-            
-            $distData = "dist\AetherOnePy\data"
-            if (Test-Path $distData) {
-                $dataCount = (Get-ChildItem $distData -Directory).Count  
-                Write-Host "📊 Bundled Data: $dataCount components" -ForegroundColor Green
-            }
+            exit 0
         } else {
             Write-Host "❌ Executable not found!" -ForegroundColor Red
             exit 1
@@ -151,17 +134,9 @@ jobs:
     - name: Archive build directory
       run: |
         Write-Host "=== Archiving Build Directory ===" -ForegroundColor Green
-        
-        $outputDir = "dist/AetherOnePy"
         $archiveName = "AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}.zip"
-        
-        if (Test-Path $outputDir) {
-            Compress-Archive -Path "$outputDir\*" -DestinationPath $archiveName -Force
-            Write-Host "✅ Created archive: $archiveName" -ForegroundColor Green
-        } else {
-            Write-Host "❌ Build directory 'dist/AetherOnePy' not found!" -ForegroundColor Red
-            exit 1
-        }
+        Compress-Archive -Path "dist/AetherOnePy/*" -DestinationPath $archiveName -Force
+        Write-Host "✅ Created archive: $archiveName" -ForegroundColor Green
       shell: pwsh
 
     - name: Upload build with plugins
@@ -193,8 +168,7 @@ jobs:
           
           ---
           Built automatically with GitHub Actions 🤖
-        files: |
-          AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}.zip
+        files: AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}.zip
         draft: false
         prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
       env:
