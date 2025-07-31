@@ -87,6 +87,5 @@ if __name__ == '__main__':
     """
     Installs automatically the required dependencies
     """
-    os.makedirs('data', exist_ok=True)
     check_and_install_packages()
     install_plugin_requirements()

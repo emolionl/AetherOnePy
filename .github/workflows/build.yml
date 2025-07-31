@@ -191,6 +191,17 @@ jobs:
         }
       shell: pwsh
 
+    - name: Ensure data directory exists
+      run: |
+        Write-Host "=== Verifying existence of data directory ===" -ForegroundColor Green
+        if (!(Test-Path "data")) {
+            New-Item -ItemType Directory -Force -Path "data"
+            Write-Host "✅ Created empty 'data' directory." -ForegroundColor Green
+        } else {
+            Write-Host "✓ 'data' directory already exists." -ForegroundColor Green
+        }
+      shell: pwsh
+
     - name: Clean build directories
       run: |
         Write-Host "=== Cleaning Build Directories ===" -ForegroundColor Yellow
