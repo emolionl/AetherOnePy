@@ -96,10 +96,28 @@ def main():
             '--port', '7000'
         ], 
         cwd=py_dir,  # Run from py directory
-        creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == 'win32' else 0
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True,
+        bufsize=1,
+        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
         )
         
         debug_print(f"Flask started with PID: {flask_process.pid}")
+        
+        # Start thread to read Flask output
+        def read_flask_output():
+            debug_print("Starting Flask output reader...")
+            try:
+                for line in flask_process.stdout:
+                    print(f"[FLASK] {line.rstrip()}")
+                    sys.stdout.flush()
+            except Exception as e:
+                debug_print(f"Flask output reader error: {e}")
+        
+        import threading
+        flask_output_thread = threading.Thread(target=read_flask_output, daemon=True)
+        flask_output_thread.start()
         
         # Wait for Flask to start
         debug_print("Waiting for Flask to start...")
