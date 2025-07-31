@@ -24,6 +24,7 @@ env:
   PYTHON_VERSION: '3.11'
   PYINSTALLER_VERSION: '6.14.2'
   PLUGIN_DIR: 'py/plugins'
+  UI_DIST_DIR: 'ui/dist/ui/browser'
 
 jobs:
   build-windows:
@@ -51,17 +52,20 @@ jobs:
     - name: Prepare plugin directory
       run: |
         Write-Host "=== Preparing Plugin Directory ===" -ForegroundColor Cyan
-        mkdir -p ${{ env.PLUGIN_DIR }}
+        New-Item -Path "${{ env.PLUGIN_DIR }}" -ItemType Directory -Force
+      shell: pwsh
 
     - name: Clone AetherOne Social Plugin
       run: |
         Write-Host "=== Cloning AetherOne Social Plugin ===" -ForegroundColor Cyan
         git clone https://github.com/emolionl/AetherOnePySocialPlugin.git ${{ env.PLUGIN_DIR }}/AetherOnePySocialPlugin
+      shell: pwsh
 
     - name: Clone Financial Compass Plugin
       run: |
         Write-Host "=== Cloning Financial Compass Plugin ===" -ForegroundColor Cyan
         git clone https://github.com/emolionl/FinCompassPlugin.git ${{ env.PLUGIN_DIR }}/FinCompassPlugin
+      shell: pwsh
         
     - name: Install plugin dependencies
       run: |
@@ -97,33 +101,116 @@ jobs:
     - name: Create plugin inventory
       run: |
         Write-Host "=== Creating Plugin Inventory ===" -ForegroundColor Green
-        # ... (your original PowerShell script for inventory here) ...
+        $inventory = @{
+            "build_info" = @{
+                "timestamp" = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss UTC")
+                "environment" = "${{ github.event.inputs.environment || 'ci' }}"
+                "commit" = "${{ github.sha }}"
+                "python_version" = (python --version)
+            }
+            "plugins" = @{}
+            "data_components" = @{}
+        }
+        
+        # Inventory plugins
+        if (Test-Path "${{ env.PLUGIN_DIR }}") {
+            $plugins = Get-ChildItem "${{ env.PLUGIN_DIR }}" -Directory
+            foreach ($plugin in $plugins) {
+                $pluginInfo = @{
+                    "name" = $plugin.Name
+                    "path" = $plugin.FullName
+                    "size_mb" = [math]::Round((Get-ChildItem $plugin.FullName -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB, 2)
+                }
+                
+                $pluginJson = Join-Path $plugin.FullName "plugin.json"
+                if (Test-Path $pluginJson) {
+                    $info = Get-Content $pluginJson | ConvertFrom-Json
+                    $pluginInfo["version"] = $info.version
+                    $pluginInfo["description"] = $info.description
+                }
+                
+                $inventory.plugins[$plugin.Name] = $pluginInfo
+            }
+        }
+        
+        # Inventory data components
+        if (Test-Path "data") {
+            $dataItems = Get-ChildItem "data" -Directory
+            foreach ($item in $dataItems) {
+                $inventory.data_components[$item.Name] = @{
+                    "path" = $item.FullName
+                    "size_mb" = [math]::Round((Get-ChildItem $item.FullName -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB, 2)
+                }
+            }
+        }
+        
+        # Save inventory
+        New-Item -Path "dist/AetherOnePy" -ItemType Directory -Force
+        $inventory | ConvertTo-Json -Depth 4 | Set-Content "dist/AetherOnePy/plugin_inventory.json"
+        Write-Host "✅ Plugin inventory saved" -ForegroundColor Green
       shell: pwsh
 
     - name: Verify executable with plugins
       run: |
         Write-Host "=== Verifying Executable ===" -ForegroundColor Green
-        # ... (your original PowerShell script for verification here) ...
+        
+        $exePath = "dist\AetherOnePy\AetherOnePy.exe"
+        
+        if (Test-Path $exePath) {
+            $fileInfo = Get-Item $exePath
+            $sizeMB = [math]::Round($fileInfo.Length / 1MB, 2)
+            
+            Write-Host "✅ Executable created successfully!" -ForegroundColor Green
+            Write-Host "📁 Location: $($fileInfo.FullName)" -ForegroundColor White
+            Write-Host "📊 Size: $sizeMB MB" -ForegroundColor White
+            
+            # Check if plugins are included in the distribution
+            $distPlugins = "dist\AetherOnePy\py\plugins"
+            if (Test-Path $distPlugins) {
+                $pluginCount = (Get-ChildItem $distPlugins -Directory).Count
+                Write-Host "🔌 Bundled Plugins: $pluginCount" -ForegroundColor Green
+            }
+            
+            $distData = "dist\AetherOnePy\data"
+            if (Test-Path $distData) {
+                $dataCount = (Get-ChildItem $distData -Directory).Count  
+                Write-Host "📊 Bundled Data: $dataCount components" -ForegroundColor Green
+            }
+        } else {
+            Write-Host "❌ Executable not found!" -ForegroundColor Red
+            exit 1
+        }
       shell: pwsh
 
     - name: Archive build directory
       run: |
         Write-Host "=== Archiving Build Directory ===" -ForegroundColor Green
-        # ... (your original PowerShell script for archiving here) ...
+        
+        $outputDir = "dist/AetherOnePy"
+        $archiveName = "AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}.zip"
+        
+        if (Test-Path $outputDir) {
+            # Create the zip archive
+            Compress-Archive -Path "$outputDir\*" -DestinationPath $archiveName -Force
+            Write-Host "✅ Created archive: $archiveName" -ForegroundColor Green
+        } else {
+            Write-Host "❌ Build directory 'dist/AetherOnePy' not found!" -ForegroundColor Red
+            exit 1
+        }
       shell: pwsh
 
     - name: Upload build with plugins
       uses: actions/upload-artifact@v4
       with:
-        name: AetherOnePy-WithPlugins-${{ github.sha }}
-        path: AetherOnePy-WithPlugins-ci.zip
+        name: AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}-${{ github.sha }}
+        path: AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}.zip
         retention-days: 30
 
     - name: Create release with plugins
-      if: startsWith(github.ref, 'refs/tags/')
+      if: github.event.inputs.create_release == 'true' || startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref_name }}
+        tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}
         name: AetherOnePy with Plugins ${{ github.ref_name }}
         body: |
           ## 🚀 AetherOnePy Desktop Application with Plugins
@@ -131,18 +218,18 @@ jobs:
           
           ### 📦 What's Included
           - ✅ Complete desktop application
-          - ✅ All enabled plugins from the plugins-config.json
+          - ✅ All enabled plugins
           - ✅ Plugin dependencies automatically resolved
           - ✅ Data components and rates database
           
           ### 🛠️ Installation
-          1. Download `AetherOnePy-WithPlugins-ci.zip` from the assets below.
+          1. Download `AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}.zip` from the assets below.
           2. Extract the contents and run `AetherOnePy.exe`.
           
           ---
           Built automatically with GitHub Actions 🤖
         files: |
-          AetherOnePy-WithPlugins-ci.zip
+          AetherOnePy-WithPlugins-${{ github.event.inputs.environment || 'ci' }}.zip
         draft: false
         prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
       env:
