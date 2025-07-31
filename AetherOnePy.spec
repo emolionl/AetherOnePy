@@ -1,0 +1,126 @@
+# -*- mode: python ; coding: utf-8 -*-
+
+import os
+import shutil
+
+# Clean up old build files automatically
+print("=== CLEANUP OLD FILES ===")
+try:
+    if os.path.exists('dist'):
+        print("Removing old dist directory...")
+        # Force remove with retries
+        for i in range(3):
+            try:
+                shutil.rmtree('dist')
+                break
+            except PermissionError:
+                if i < 2:  # Retry up to 3 times
+                    import time
+                    time.sleep(2)
+                    continue
+                else:
+                    print("Warning: Could not remove dist directory completely")
+    
+    if os.path.exists('build'):
+        print("Removing old build directory...")
+        shutil.rmtree('build')
+    print("✓ Cleanup completed")
+except Exception as e:
+    print(f"Cleanup warning: {e}")
+
+# CREATE BUILD DIRECTORIES AFTER CLEANUP
+print("=== CREATING BUILD DIRECTORIES ===")
+try:
+    os.makedirs('build', exist_ok=True)
+    os.makedirs('build/AetherOnePy', exist_ok=True)
+    print("✓ Build directories created")
+except Exception as e:
+    print(f"Directory creation error: {e}")
+
+# Function to collect all data files with correct path mapping
+def collect_data_files():
+    datas = []
+    
+    # Collect py directory and all its contents
+    if os.path.exists('py'):
+        datas.append(('py', 'py'))
+        print("✓ Collected py directory")
+    
+    # Collect data directory and all its contents
+    if os.path.exists('data'):
+        datas.append(('data', 'data'))
+        print("✓ Collected data directory")
+    
+    # Collect UI files and preserve their directory structure exactly
+    ui_path = 'ui/dist/ui/browser'
+    if os.path.exists(ui_path):
+        datas.append((ui_path, ui_path))
+        print(f"✓ Collected UI files from {ui_path}")
+    else:
+        print(f"Warning: UI directory not found at {ui_path}. The UI might be missing.")
+    
+    return datas
+
+# Call the function to populate the datas list
+datas = collect_data_files()
+
+# Add exclusions for faster build
+excludes = [
+    'matplotlib', 'scipy', 'opencv-python', 'cv2', 'pygame', 
+    'PIL', 'Pillow', 'sphinx', 'sphinx_rtd_theme', 'gitpython', 
+    'git', 'eventlet', 'numpy', 'pandas', 'tkinter', 'test', 'unittest'
+]
+
+# Hidden imports
+hiddenimports = [
+    'flask', 'webview', 'screeninfo', 'subprocess', 'time', 'sys', 'os',
+    'urllib.request', 'urllib.error', 'traceback', 'threading', 'shutil', 
+    'queue', 'flask.templating', 'jinja2', 'werkzeug', 'flask_cors', 'flask_socketio'
+]
+
+a = Analysis(
+    ['desktop_launcher.py'],
+    pathex=[],
+    binaries=[],
+    datas=datas,
+    hiddenimports=hiddenimports,
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=excludes,
+    noarchive=False,
+    optimize=0,
+)
+
+pyz = PYZ(a.pure)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name='AetherOnePy',
+    debug=True,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=False,
+    console=True,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=False,
+    upx_exclude=[],
+    name='AetherOnePy',
+)
+
+print("=== BUILD COMPLETE ===")
+print("Executable will be at: dist/AetherOnePy/AetherOnePy.exe")
