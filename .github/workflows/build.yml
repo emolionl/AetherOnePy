@@ -216,13 +216,12 @@ jobs:
         
         try {
             if (Test-Path "AetherOnePy.spec") {
-                # Ensure the spec file includes the plugins.
                 Write-Host "Using spec file build..." -ForegroundColor Cyan
                 pyinstaller AetherOnePy.spec --noconfirm --log-level INFO
             } else {
-                Write-Host "Using command line build..." -ForegroundColor Cyan
-                # Corrected --add-data flag to explicitly include the plugins folder
-                pyinstaller --name "AetherOnePy" --add-data "py;py" --add-data "py/plugins;py/plugins" --add-data "data;data" --add-data "ui/dist/ui/browser;ui" --console --noupx desktop_launcher.py --log-level INFO
+                # This block will now only be a fallback, as we will ensure a spec file exists.
+                Write-Host "❌ Spec file not found, this is unexpected." -ForegroundColor Red
+                exit 1
             }
             
             Write-Host "✅ Build completed successfully" -ForegroundColor Green
