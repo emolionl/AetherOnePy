@@ -24,7 +24,7 @@ try:
     if os.path.exists('build'):
         print("Removing old build directory...")
         shutil.rmtree('build')
-    print("✓ Cleanup completed")
+    print("Cleanup completed")
 except Exception as e:
     print(f"Cleanup warning: {e}")
 
@@ -33,7 +33,7 @@ print("=== CREATING BUILD DIRECTORIES ===")
 try:
     os.makedirs('build', exist_ok=True)
     os.makedirs('build/AetherOnePy', exist_ok=True)
-    print("✓ Build directories created")
+    print("Build directories created")
 except Exception as e:
     print(f"Directory creation error: {e}")
 
@@ -44,18 +44,18 @@ def collect_data_files():
     # Collect py directory and all its contents
     if os.path.exists('py'):
         datas.append(('py', 'py'))
-        print("✓ Collected py directory")
+        print("Collected py directory")
     
     # Collect data directory and all its contents
     if os.path.exists('data'):
         datas.append(('data', 'data'))
-        print("✓ Collected data directory")
+        print("Collected data directory")
     
     # Collect UI files and preserve their directory structure exactly
     ui_path = 'ui/dist/ui/browser'
     if os.path.exists(ui_path):
         datas.append((ui_path, ui_path))
-        print(f"✓ Collected UI files from {ui_path}")
+        print(f"Collected UI files from {ui_path}")
     else:
         print(f"Warning: UI directory not found at {ui_path}. The UI might be missing.")
     
