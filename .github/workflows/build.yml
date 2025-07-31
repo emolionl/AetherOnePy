@@ -168,14 +168,14 @@ jobs:
         }
       shell: pwsh
 
-    - name: Build UI (Angular)
-      run: |
-        Write-Host "=== Building UI ===" -ForegroundColor Green
-        cd ui
-        npm install
-        npm run build -- --base-href=/
-        cd ..
-      shell: pwsh
+    # - name: Build UI (Angular)
+    #   run: |
+    #     Write-Host "=== Building UI ===" -ForegroundColor Green
+    #     cd ui
+    #     npm install
+    #     npm run build -- --base-href=/
+    #     cd ..
+    #   shell: pwsh
     
     - name: Clean build directories
       run: |
