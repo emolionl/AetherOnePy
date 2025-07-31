@@ -45,9 +45,18 @@ try:
 except ImportError:
     print("Warning: pythonnet not available during build")
 
+# Add qrcode module files to ensure proper inclusion
+try:
+    import qrcode
+    qrcode_path = os.path.dirname(qrcode.__file__)
+    datas.append((qrcode_path, 'qrcode'))
+    print(f"Added qrcode module files from: {qrcode_path}")
+except ImportError:
+    print("Warning: qrcode not available during build")
+
 excludes = [
     'matplotlib', 'scipy', 'opencv-python', 'cv2', 'pygame', 
-    'PIL', 'Pillow', 'sphinx', 'sphinx_rtd_theme', 'gitpython', 
+    'sphinx', 'sphinx_rtd_theme', 'gitpython', 
     'git', 'eventlet', 'numpy', 'pandas', 'tkinter', 'test', 'unittest'
 ]
 
@@ -56,7 +65,7 @@ hiddenimports = [
     'urllib.request', 'urllib.error', 'traceback', 'threading', 'shutil', 
     'queue', 'flask.templating', 'jinja2', 'werkzeug', 'flask_cors', 'flask_socketio',
     'pythonnet', 'clr', 'clr_loader', 'clr_loader.netfx', 'clr_loader.types',
-    'qrcode', 'qrcode.constants', 'qrcode.image', 'qrcode.image.pil',
+    'qrcode', 'qrcode.constants', 'qrcode.image', 'qrcode.image.pil', 'qrcode.image.base',
     'flasgger', 'PIL', 'PIL.ImageDraw', 'PIL.ImageFont', 'dateutil', 'dateutil.parser',
     'psutil', 'asyncio', 'argparse', 'platform', 'socket', 're', 'json', 'logging',
     'importlib', 'multiprocessing', 'io',
@@ -114,3 +123,17 @@ coll = COLLECT(
 
 print("=== BUILD COMPLETE ===")
 print("Executable will be at: dist/AetherOnePy/AetherOnePy.exe")
+
+# Verify critical modules are available
+print("=== VERIFYING CRITICAL MODULES ===")
+try:
+    import qrcode
+    print(f"✓ qrcode module available at: {qrcode.__file__}")
+except ImportError as e:
+    print(f"✗ qrcode module missing: {e}")
+
+try:
+    from PIL import Image
+    print(f"✓ PIL module available")
+except ImportError as e:
+    print(f"✗ PIL module missing: {e}")
