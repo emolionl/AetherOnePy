@@ -42,8 +42,8 @@ try:
         print("Command:", [sys.executable, setup_script])
         print("Working directory:", os.path.abspath('py'))
         
-        # Force install critical modules first
-        critical_modules = ['qrcode[pil]', 'Pillow', 'requests', 'rich', 'icecream', 'python-dotenv']
+        # Force install critical modules first (with specific pythonnet version)
+        critical_modules = ['qrcode[pil]', 'Pillow', 'requests', 'rich', 'icecream', 'python-dotenv', 'pythonnet==3.0.3']
         for module in critical_modules:
             try:
                 print(f"[CRITICAL] Installing {module}...")
@@ -92,9 +92,45 @@ datas = [
 try:
     import pythonnet
     import os
+    # Detailed pythonnet investigation
+    print(f"Pythonnet version: {getattr(pythonnet, '__version__', 'unknown')}")
+    print(f"Pythonnet path: {pythonnet.__file__}")
+    
+    # Check pythonnet installation details
+    try:
+        import pkg_resources
+        pythonnet_dist = pkg_resources.get_distribution('pythonnet')
+        print(f"Pythonnet package version: {pythonnet_dist.version}")
+        print(f"Pythonnet install location: {pythonnet_dist.location}")
+    except:
+        print("Could not get pythonnet package info")
+    
     pythonnet_path = os.path.dirname(pythonnet.__file__)
     runtime_path = os.path.join(pythonnet_path, 'runtime')
+    print(f"Runtime path: {runtime_path}")
+    
     if os.path.exists(runtime_path):
+        runtime_files = os.listdir(runtime_path)
+        print(f"Runtime directory contents: {runtime_files}")
+        
+        # Check specific DLL details
+        python_runtime_dll = os.path.join(runtime_path, 'Python.Runtime.dll')
+        if os.path.exists(python_runtime_dll):
+            dll_size = os.path.getsize(python_runtime_dll)
+            print(f"Python.Runtime.dll size: {dll_size} bytes")
+            
+            # Try to check DLL version info if possible
+            try:
+                import subprocess
+                result = subprocess.run(['powershell', '-Command', 
+                                       f'(Get-ItemProperty "{python_runtime_dll}").VersionInfo'], 
+                                       capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    print(f"Python.Runtime.dll version info: {result.stdout.strip()}")
+            except:
+                print("Could not get DLL version info")
+        else:
+            print("Python.Runtime.dll not found!")
         # Add entire runtime directory
         datas.append((runtime_path, 'pythonnet/runtime'))
         print(f"Added pythonnet runtime files from: {runtime_path}")
@@ -116,6 +152,15 @@ try:
                 binaries.append((dll_path, '.'))
                 binaries.append((dll_path, 'pythonnet/runtime'))
                 print(f"Added pythonnet DLL to root and runtime: {dll}")
+                
+                # Check DLL architecture and properties
+                try:
+                    import platform
+                    print(f"  System architecture: {platform.architecture()}")
+                    print(f"  DLL size: {os.path.getsize(dll_path)} bytes")
+                except Exception as e:
+                    print(f"  Could not get DLL info: {e}")
+                    
             else:
                 print(f"Warning: {dll} not found at {dll_path}")
                 
