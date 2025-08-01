@@ -42,6 +42,17 @@ try:
         print("Command:", [sys.executable, setup_script])
         print("Working directory:", os.path.abspath('py'))
         
+        # Force install critical modules first
+        critical_modules = ['qrcode[pil]', 'Pillow', 'requests', 'rich', 'icecream', 'python-dotenv']
+        for module in critical_modules:
+            try:
+                print(f"[CRITICAL] Installing {module}...")
+                subprocess.run([sys.executable, '-m', 'pip', 'install', module], 
+                             check=True, capture_output=False)
+                print(f"[OK] {module} installed")
+            except subprocess.CalledProcessError as e:
+                print(f"[ERROR] Failed to install {module}: {e}")
+        
         result = subprocess.run([sys.executable, setup_script], 
                               cwd='py', 
                               capture_output=False,  # Show output in real-time
@@ -91,7 +102,7 @@ try:
         # Manually add critical DLL files to binaries for better inclusion
         dll_files = [
             'Python.Runtime.dll',
-            'Python.Runtime.Native.dll',
+            'Python.Runtime.Native.dll', 
             'clrmodule.dll'
         ]
         
@@ -101,10 +112,21 @@ try:
                 # Add to binaries for direct inclusion
                 if 'binaries' not in locals():
                     binaries = []
+                # Add to both root and pythonnet/runtime directories
                 binaries.append((dll_path, '.'))
-                print(f"Added pythonnet DLL: {dll}")
+                binaries.append((dll_path, 'pythonnet/runtime'))
+                print(f"Added pythonnet DLL to root and runtime: {dll}")
             else:
                 print(f"Warning: {dll} not found at {dll_path}")
+                
+        # Also try to find and add all files in runtime directory
+        if os.path.exists(runtime_path):
+            for file in os.listdir(runtime_path):
+                if file.endswith(('.dll', '.exe', '.config')):
+                    file_path = os.path.join(runtime_path, file)
+                    binaries.append((file_path, '.'))
+                    binaries.append((file_path, 'pythonnet/runtime'))
+                    print(f"Added pythonnet runtime file: {file}")
     else:
         print(f"Warning: pythonnet runtime path not found: {runtime_path}")
 except ImportError:
