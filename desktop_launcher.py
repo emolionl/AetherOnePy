@@ -13,6 +13,25 @@ def debug_print(message):
         print(f"[DEBUG] {message}")
         sys.stdout.flush()
 
+def show_loader(message, duration):
+    """Show an animated loader for the specified duration"""
+    import threading
+    import time
+    
+    def animate():
+        chars = ['|', '/', '-', '\\']
+        start_time = time.time()
+        i = 0
+        while time.time() - start_time < duration:
+            print(f"\r{message} {chars[i % len(chars)]}", end='', flush=True)
+            time.sleep(0.2)
+            i += 1
+        print(f"\r{message} ✓", flush=True)
+    
+    thread = threading.Thread(target=animate, daemon=True)
+    thread.start()
+    return thread
+
 def find_python_executable():
     """Find a working Python executable"""
     debug_print("Finding Python executable...")
@@ -119,9 +138,11 @@ def main():
         flask_output_thread = threading.Thread(target=read_flask_output, daemon=True)
         flask_output_thread.start()
         
-        # Wait for Flask to start
+        # Wait for Flask to start with visual feedback
         debug_print("Waiting for Flask to start...")
-        time.sleep(8)  # Give it more time
+        loader_thread = show_loader("Starting Flask server", 12)
+        time.sleep(12)  # Give it more time to handle socket binding issues
+        loader_thread.join()  # Wait for loader to finish
         
         # Check if Flask is still running
         if flask_process.poll() is not None:
@@ -129,20 +150,36 @@ def main():
             input("Press Enter to exit...")
             return
         
-        # Test connection
+        # Test connection with more patience for socket binding issues
         debug_print("Testing Flask connection...")
         import urllib.request
         
-        for attempt in range(10):
+        connection_successful = False
+        print("Testing connection to Flask server...")
+        
+        for attempt in range(15):  # More attempts
             try:
+                # Show a mini loader for each attempt
+                print(f"\rAttempt {attempt + 1}/15... ", end='', flush=True)
                 response = urllib.request.urlopen('http://localhost:7000', timeout=5)
+                print(f"\r✓ Flask responding! Status: {response.code}")
                 debug_print(f"✓ Flask responding! Status: {response.code}")
+                connection_successful = True
                 break
             except Exception as e:
-                debug_print(f"Attempt {attempt + 1}: {e}")
-                time.sleep(2)
-        else:
-            debug_print("Could not connect to Flask!")
+                if attempt < 14:  # Don't show error on last attempt
+                    print(f"\rAttempt {attempt + 1}/15 failed, retrying... ", end='', flush=True)
+                debug_print(f"Attempt {attempt + 1}/15: {e}")
+                if "10061" in str(e) or "Connection refused" in str(e):
+                    # Connection refused - Flask might still be starting
+                    time.sleep(3)  # Longer wait for socket binding issues
+                else:
+                    time.sleep(2)
+        
+        if not connection_successful:
+            print(f"\r❌ Could not connect to Flask after 15 attempts!")
+            debug_print("Could not connect to Flask after 15 attempts!")
+            debug_print("Flask process might have socket binding issues.")
             input("Press Enter to exit...")
             return
         
