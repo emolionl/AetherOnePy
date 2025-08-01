@@ -181,15 +181,8 @@ except ImportError:
 if 'binaries' not in locals():
     binaries = []
 
-# Force include qrcode module as data files since hiddenimports isn't working
+# Force include missing modules as data files since hiddenimports isn't working
 print("=== FORCE INCLUDING MISSING MODULES ===")
-try:
-    import qrcode
-    qrcode_path = os.path.dirname(qrcode.__file__)
-    datas.append((qrcode_path, 'qrcode'))
-    print(f"[FORCE] Added qrcode package from: {qrcode_path}")
-except ImportError:
-    print("[WARNING] qrcode not available during build - will try to include anyway")
 
 try:
     import PIL
@@ -255,10 +248,7 @@ def get_plugin_requirements_like_setup():
                                     print(f"  -> {import_name}")
                                     
                                     # Add common submodules for critical packages
-                                    if import_name == 'qrcode':
-                                        submodules = ['qrcode.constants', 'qrcode.image', 'qrcode.image.pil', 'qrcode.image.base']
-                                        plugin_imports.extend(submodules)
-                                    elif import_name == 'rich':
+                                    if import_name == 'rich':
                                         submodules = ['rich.print', 'rich.pretty', 'rich.console']
                                         plugin_imports.extend(submodules) 
                                     elif import_name == 'PIL':
@@ -292,7 +282,6 @@ base_hiddenimports = [
     'urllib.request', 'urllib.error', 'traceback', 'threading', 'shutil', 
     'queue', 'flask.templating', 'jinja2', 'werkzeug', 'flask_cors', 'flask_socketio',
     'pythonnet', 'clr', 'clr_loader', 'clr_loader.netfx', 'clr_loader.types',
-    'qrcode', 'qrcode.constants', 'qrcode.image', 'qrcode.image.pil', 'qrcode.image.base',
     'flasgger', 'PIL', 'PIL.ImageDraw', 'PIL.ImageFont', 'dateutil', 'dateutil.parser',
     'psutil', 'asyncio', 'argparse', 'platform', 'socket', 're', 'json', 'logging',
     'importlib', 'multiprocessing', 'io',
@@ -365,12 +354,6 @@ print("Executable will be at: dist/AetherOnePy/AetherOnePy.exe")
 
 # Verify critical modules are available
 print("=== VERIFYING CRITICAL MODULES ===")
-try:
-    import qrcode
-    print(f"[OK] qrcode module available at: {qrcode.__file__}")
-except ImportError as e:
-    print(f"[ERROR] qrcode module missing: {e}")
-    print("[INFO] This is expected if qrcode wasn't installed by setup.py yet")
 
 try:
     from PIL import Image
