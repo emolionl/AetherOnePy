@@ -91,71 +91,107 @@ def on_window_closed():
         debug_print("✓ Flask process terminated.")
 
 def main():
-    debug_print("=== AETHER ONE PY SUBPROCESS LAUNCHER ===")
+    debug_print("=== AETHER ONE PY LAUNCHER ===")
     global flask_process
     flask_process = None
     
     try:
-        # Find Python
-        python_exe = find_python_executable()
-        if not python_exe:
-            debug_print("Cannot find Python executable!")
-            input("Press Enter to exit...")
-            return
+        if getattr(sys, 'frozen', False):
+            # When bundled, run Flask in the same process (in a thread)
+            debug_print("Running in bundled mode - starting Flask in thread")
+            
+            # Get Flask script path and add py directory to sys.path
+            py_dir = get_resource_path('py')
+            if py_dir not in sys.path:
+                sys.path.insert(0, py_dir)
+            
+            # Import and run Flask app in a thread
+            def run_flask():
+                try:
+                    os.chdir(py_dir)  # Change to py directory
+                    import main
+                    # Set port via environment variable
+                    os.environ['FLASK_PORT'] = '7000'
+                    main.main()  # Run the Flask app
+                except Exception as e:
+                    debug_print(f"Flask thread error: {e}")
+                    import traceback
+                    traceback.print_exc()
+            
+            import threading
+            flask_thread = threading.Thread(target=run_flask, daemon=True)
+            flask_thread.start()
+            
+            # Give Flask time to start
+            debug_print("Waiting for Flask to start...")
+            time.sleep(5)
+            
+        else:
+            # Development mode - use subprocess as before
+            debug_print("Running in development mode - using subprocess")
+            
+            # Find Python
+            python_exe = find_python_executable()
+            if not python_exe:
+                debug_print("Cannot find Python executable!")
+                input("Press Enter to exit...")
+                return
+            
+            # Get Flask script
+            flask_script = get_resource_path('py/main.py')
+            debug_print(f"Flask script: {flask_script}")
+            
+            if not os.path.exists(flask_script):
+                debug_print(f"Flask script not found: {flask_script}")
+                input("Press Enter to exit...")
+                return
+            
+            # Start Flask process
+            debug_print("Starting Flask process...")
+            py_dir = get_resource_path('py')
+            
+            flask_process = subprocess.Popen([
+                python_exe, 
+                'main.py',  # Run from py directory
+                '--port', '7000'
+            ], 
+            cwd=py_dir,  # Run from py directory
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            bufsize=1,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
+            )
         
-        # Get Flask script
-        flask_script = get_resource_path('py/main.py')
-        debug_print(f"Flask script: {flask_script}")
-        
-        if not os.path.exists(flask_script):
-            debug_print(f"Flask script not found: {flask_script}")
-            input("Press Enter to exit...")
-            return
-        
-        # Start Flask process
-        debug_print("Starting Flask process...")
-        py_dir = get_resource_path('py')
-        
-        flask_process = subprocess.Popen([
-            python_exe, 
-            'main.py',  # Run from py directory
-            '--port', '7000'
-        ], 
-        cwd=py_dir,  # Run from py directory
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=True,
-        bufsize=1,
-        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
-        )
-        
-        debug_print(f"Flask started with PID: {flask_process.pid}")
-        
-        # Start thread to read Flask output
-        def read_flask_output():
-            debug_print("Starting Flask output reader...")
-            try:
-                for line in flask_process.stdout:
-                    print(f"[FLASK] {line.rstrip()}")
-                    sys.stdout.flush()
-            except Exception as e:
-                debug_print(f"Flask output reader error: {e}")
-        
-        import threading
-        flask_output_thread = threading.Thread(target=read_flask_output, daemon=True)
-        flask_output_thread.start()
-        
-        # Wait for Flask to start with visual feedback
-        debug_print("Waiting for Flask to start...")
-        loader_thread = show_loader("Starting Flask server", 12)
-        time.sleep(12)  # Give it more time to handle socket binding issues
-        loader_thread.join()  # Wait for loader to finish
-        
-        # Check if Flask is still running
-        if flask_process.poll() is not None:
-            debug_print("Flask process died!")
-            input("Press Enter to exit...")
-            return
+        if not getattr(sys, 'frozen', False):
+            # Only for development mode with subprocess
+            debug_print(f"Flask started with PID: {flask_process.pid}")
+            
+            # Start thread to read Flask output
+            def read_flask_output():
+                debug_print("Starting Flask output reader...")
+                try:
+                    for line in flask_process.stdout:
+                        print(f"[FLASK] {line.rstrip()}")
+                        sys.stdout.flush()
+                except Exception as e:
+                    debug_print(f"Flask output reader error: {e}")
+            
+            import threading
+            flask_output_thread = threading.Thread(target=read_flask_output, daemon=True)
+            flask_output_thread.start()
+            
+            # Wait for Flask to start with visual feedback
+            debug_print("Waiting for Flask to start...")
+            loader_thread = show_loader("Starting Flask server", 12)
+            time.sleep(12)  # Give it more time to handle socket binding issues
+            loader_thread.join()  # Wait for loader to finish
+            
+            # Check if Flask is still running
+            if flask_process.poll() is not None:
+                debug_print("Flask process died!")
+                input("Press Enter to exit...")
+                return
         
         # Test connection with more patience for socket binding issues
         debug_print("Testing Flask connection...")
