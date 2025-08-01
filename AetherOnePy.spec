@@ -99,34 +99,23 @@ try:
         datas.append((runtime_path, 'pythonnet/runtime'))
         print(f"Added pythonnet runtime files from: {runtime_path}")
         
-        # Manually add critical DLL files to binaries for better inclusion
+        # Manually add critical DLL files to binaries (keep it simple like before)
         dll_files = [
             'Python.Runtime.dll',
-            'Python.Runtime.Native.dll', 
+            'Python.Runtime.Native.dll',
             'clrmodule.dll'
         ]
         
         for dll in dll_files:
             dll_path = os.path.join(runtime_path, dll)
             if os.path.exists(dll_path):
-                # Add to binaries for direct inclusion
+                # Add to binaries for direct inclusion in root directory only
                 if 'binaries' not in locals():
                     binaries = []
-                # Add to both root and pythonnet/runtime directories
                 binaries.append((dll_path, '.'))
-                binaries.append((dll_path, 'pythonnet/runtime'))
-                print(f"Added pythonnet DLL to root and runtime: {dll}")
+                print(f"Added pythonnet DLL: {dll}")
             else:
                 print(f"Warning: {dll} not found at {dll_path}")
-                
-        # Also try to find and add all files in runtime directory
-        if os.path.exists(runtime_path):
-            for file in os.listdir(runtime_path):
-                if file.endswith(('.dll', '.exe', '.config')):
-                    file_path = os.path.join(runtime_path, file)
-                    binaries.append((file_path, '.'))
-                    binaries.append((file_path, 'pythonnet/runtime'))
-                    print(f"Added pythonnet runtime file: {file}")
     else:
         print(f"Warning: pythonnet runtime path not found: {runtime_path}")
 except ImportError:
