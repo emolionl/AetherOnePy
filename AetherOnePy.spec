@@ -2,6 +2,8 @@
 
 import os
 import shutil
+import subprocess
+import sys
 from PyInstaller.utils.hooks import get_package_paths
 
 print("=== CLEANUP OLD FILES ===")
@@ -23,6 +25,34 @@ try:
     print("Build directories created")
 except Exception as e:
     print(f"Directory creation error: {e}")
+
+print("=== RUNNING SETUP.PY TO INSTALL ALL DEPENDENCIES ===")
+try:
+    import sys
+    import subprocess
+    
+    # Change to py directory and run setup.py
+    setup_script = os.path.join('py', 'setup.py')
+    if os.path.exists(setup_script):
+        print("Running py/setup.py to install all dependencies...")
+        result = subprocess.run([sys.executable, setup_script], 
+                              cwd='py', 
+                              capture_output=True, 
+                              text=True)
+        
+        if result.returncode == 0:
+            print("[OK] setup.py completed successfully")
+            if result.stdout:
+                print("Setup output:", result.stdout)
+        else:
+            print(f"[WARNING] setup.py returned code {result.returncode}")
+            if result.stderr:
+                print("Setup errors:", result.stderr)
+    else:
+        print(f"[WARNING] setup.py not found at {setup_script}")
+        
+except Exception as e:
+    print(f"[ERROR] Failed to run setup.py: {e}")
 
 # Collect data files from the source tree
 datas = [
@@ -87,7 +117,7 @@ def get_plugin_requirements_like_setup():
                                 
                                 if import_name not in plugin_imports:
                                     plugin_imports.append(import_name)
-                                    print(f"  → {import_name}")
+                                    print(f"  -> {import_name}")
                                     
                                     # Add common submodules for critical packages
                                     if import_name == 'qrcode':
@@ -202,12 +232,12 @@ print("Executable will be at: dist/AetherOnePy/AetherOnePy.exe")
 print("=== VERIFYING CRITICAL MODULES ===")
 try:
     import qrcode
-    print(f"✓ qrcode module available at: {qrcode.__file__}")
+    print(f"[OK] qrcode module available at: {qrcode.__file__}")
 except ImportError as e:
-    print(f"✗ qrcode module missing: {e}")
+    print(f"[ERROR] qrcode module missing: {e}")
 
 try:
     from PIL import Image
-    print(f"✓ PIL module available")
+    print(f"[OK] PIL module available")
 except ImportError as e:
-    print(f"✗ PIL module missing: {e}")
+    print(f"[ERROR] PIL module missing: {e}")
