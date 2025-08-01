@@ -114,6 +114,35 @@ except ImportError:
 if 'binaries' not in locals():
     binaries = []
 
+# Force include qrcode module as data files since hiddenimports isn't working
+print("=== FORCE INCLUDING MISSING MODULES ===")
+try:
+    import qrcode
+    qrcode_path = os.path.dirname(qrcode.__file__)
+    datas.append((qrcode_path, 'qrcode'))
+    print(f"[FORCE] Added qrcode package from: {qrcode_path}")
+except ImportError:
+    print("[WARNING] qrcode not available during build - will try to include anyway")
+
+try:
+    import PIL
+    pil_path = os.path.dirname(PIL.__file__)
+    datas.append((pil_path, 'PIL'))
+    print(f"[FORCE] Added PIL package from: {pil_path}")
+except ImportError:
+    print("[WARNING] PIL not available during build - will try to include anyway")
+
+# Also add any other missing plugin modules found during discovery
+missing_modules = ['requests', 'rich', 'icecream', 'dotenv']
+for module in missing_modules:
+    try:
+        mod = __import__(module)
+        mod_path = os.path.dirname(mod.__file__)
+        datas.append((mod_path, module))
+        print(f"[FORCE] Added {module} package from: {mod_path}")
+    except (ImportError, AttributeError):
+        print(f"[SKIP] {module} not available or no __file__ attribute")
+
 
 # Use the same logic as py/setup.py to discover plugin requirements
 def get_plugin_requirements_like_setup():
