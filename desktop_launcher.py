@@ -37,13 +37,20 @@ def find_python_executable():
     debug_print("Finding Python executable...")
     
     if getattr(sys, 'frozen', False):
-        # In PyInstaller, look for system Python
+        # In PyInstaller, use the bundled Python executable
+        bundled_python = os.path.join(os.path.dirname(sys.executable), '_internal', 'python.exe')
+        if os.path.exists(bundled_python):
+            debug_print(f"Found bundled Python: {bundled_python}")
+            return bundled_python
+        
+        # Fallback: look for system Python if bundled not found
+        debug_print("Bundled Python not found, looking for system Python...")
         candidates = ['python', 'py', 'python3']
         
         for candidate in candidates:
             found = shutil.which(candidate)
             if found:
-                debug_print(f"Found Python: {found}")
+                debug_print(f"Found system Python: {found}")
                 return found
         
         debug_print("No system Python found, trying common paths...")
