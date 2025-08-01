@@ -42,61 +42,16 @@ try:
         print("Command:", [sys.executable, setup_script])
         print("Working directory:", os.path.abspath('py'))
         
-        # Force install critical modules first (with specific pythonnet version)
-        critical_modules = ['qrcode[pil]', 'Pillow', 'requests', 'rich', 'icecream', 'python-dotenv', 'pythonnet==3.0.3']
-        for module in critical_modules:
-            try:
-                print(f"[CRITICAL] Installing {module}...")
-                subprocess.run([sys.executable, '-m', 'pip', 'install', module], 
-                             check=True, capture_output=False)
-                print(f"[OK] {module} installed")
-            except subprocess.CalledProcessError as e:
-                print(f"[ERROR] Failed to install {module}: {e}")
-        
-        result = subprocess.run([sys.executable, setup_script], 
+        result = subprocess.run([sys.executable, 'setup.py'], 
                               cwd='py', 
                               capture_output=False,  # Show output in real-time
                               text=True)
         
         print(f"Setup.py finished with return code: {result.returncode}")
         
-        # After setup.py, dynamically collect all packages it installed
-        print("=== DYNAMICALLY COLLECTING INSTALLED PACKAGES ===")
-        
-        # Get all packages from setup.py's required_packages list
-        try:
-            sys.path.insert(0, 'py')
-            import setup
-            
-            # Use setup.py's package mapping logic
-            for package in setup.required_packages:
-                # Use the same mapping logic from setup.py
-                if package == 'qrcode[pil]':
-                    import_name = 'qrcode'
-                elif package == 'python-dateutil':
-                    import_name = 'dateutil'
-                elif package == 'opencv-python':
-                    import_name = 'cv2'
-                elif package == 'pywebview':
-                    import_name = 'webview'
-                elif package == 'PIL':
-                    import_name = 'PIL'
-                else:
-                    import_name = package.lower().replace('-', '_')
-                
-                try:
-                    mod = __import__(import_name)
-                    if hasattr(mod, '__file__') and mod.__file__:
-                        pkg_path = os.path.dirname(mod.__file__)
-                        datas.append((pkg_path, import_name))
-                        print(f"[COLLECTED] {package} -> {import_name} from {pkg_path}")
-                except ImportError:
-                    print(f"[MISSING] {package} -> {import_name} not found")
-                except Exception as e:
-                    print(f"[ERROR] Could not collect {package}: {e}")
-                    
-        except Exception as e:
-            print(f"[ERROR] Could not load setup.py for dynamic collection: {e}")
+        # Store setup success for later dynamic collection
+        global setup_completed
+        setup_completed = (result.returncode == 0)
             
     else:
         print(f"[ERROR] setup.py not found at {os.path.abspath(setup_script)}")
@@ -114,7 +69,6 @@ except Exception as e:
 
 # Collect data files from the source tree
 datas = [
-    ('py', 'py'),
     ('data', 'data'),
     ('ui/dist/ui/browser', 'ui/dist/ui/browser')
 ]
@@ -212,27 +166,46 @@ except ImportError:
 if 'binaries' not in locals():
     binaries = []
 
-# Force include missing modules as data files since hiddenimports isn't working
-print("=== FORCE INCLUDING MISSING MODULES ===")
-
-try:
-    import PIL
-    pil_path = os.path.dirname(PIL.__file__)
-    datas.append((pil_path, 'PIL'))
-    print(f"[FORCE] Added PIL package from: {pil_path}")
-except ImportError:
-    print("[WARNING] PIL not available during build - will try to include anyway")
-
-# Also add any other missing plugin modules found during discovery
-missing_modules = ['requests', 'rich', 'icecream', 'dotenv']
-for module in missing_modules:
+# Dynamically collect packages after setup.py installation
+print("=== DYNAMICALLY COLLECTING INSTALLED PACKAGES ===")
+if 'setup_completed' in globals() and setup_completed:
     try:
-        mod = __import__(module)
-        mod_path = os.path.dirname(mod.__file__)
-        datas.append((mod_path, module))
-        print(f"[FORCE] Added {module} package from: {mod_path}")
-    except (ImportError, AttributeError):
-        print(f"[SKIP] {module} not available or no __file__ attribute")
+        sys.path.insert(0, 'py')
+        import setup
+        
+        # Use setup.py's package mapping logic
+        for package in setup.required_packages:
+            # Use the same mapping logic from setup.py
+            if package == 'qrcode[pil]':
+                import_name = 'qrcode'
+            elif package == 'python-dateutil':
+                import_name = 'dateutil'
+            elif package == 'opencv-python':
+                import_name = 'cv2'
+            elif package == 'pywebview':
+                import_name = 'webview'
+            elif package == 'Pillow':
+                import_name = 'PIL'
+            elif package == 'gitpython':
+                import_name = 'git'
+            else:
+                import_name = package.lower().replace('-', '_')
+            
+            try:
+                mod = __import__(import_name)
+                if hasattr(mod, '__file__') and mod.__file__:
+                    pkg_path = os.path.dirname(mod.__file__)
+                    datas.append((pkg_path, import_name))
+                    print(f"[COLLECTED] {package} -> {import_name} from {pkg_path}")
+            except ImportError:
+                print(f"[MISSING] {package} -> {import_name} not found")
+            except Exception as e:
+                print(f"[ERROR] Could not collect {package}: {e}")
+                
+    except Exception as e:
+        print(f"[ERROR] Could not load setup.py for dynamic collection: {e}")
+else:
+    print("[WARNING] Setup.py did not complete successfully, skipping dynamic collection")
 
 
 # Use the same logic as py/setup.py to discover plugin requirements

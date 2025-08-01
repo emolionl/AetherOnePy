@@ -16,7 +16,7 @@ required_packages = [
     'waitress',
     'qrcode[pil]',
     'pygame',
-    'PIL',
+    'Pillow',
     'pyperclip',
     'python-dateutil',
     'gitpython',
@@ -49,10 +49,12 @@ def install_package(package):
 
 def check_and_install_packages():
     for package in required_packages:
+        print(f"[INSTALL] Installing {package}...")
         try:
-            __import__(package)
-        except ImportError:
             install_package(package)
+            print(f"[OK] {package} installed successfully")
+        except Exception as e:
+            print(f"[ERROR] Failed to install {package}: {e}")
 
     # Conditionally install GPIO support if on Raspberry Pi
     if is_raspberry_pi():
