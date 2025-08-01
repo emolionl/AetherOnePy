@@ -161,9 +161,10 @@ def main():
             try:
                 # Show a mini loader for each attempt
                 print(f"\rAttempt {attempt + 1}/15... ", end='', flush=True)
-                response = urllib.request.urlopen('http://localhost:7000', timeout=5)
-                print(f"\r✓ Flask responding! Status: {response.code}")
-                debug_print(f"✓ Flask responding! Status: {response.code}")
+                # Use /ping endpoint for health check instead of main page
+                response = urllib.request.urlopen('http://localhost:7000/ping', timeout=5)
+                print(f"\r✓ Flask server ready! Health check OK (Status: {response.code})")
+                debug_print(f"✓ Flask server ready! Health check OK (Status: {response.code})")
                 connection_successful = True
                 break
             except Exception as e:
