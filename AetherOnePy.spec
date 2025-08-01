@@ -60,12 +60,43 @@ try:
         
         print(f"Setup.py finished with return code: {result.returncode}")
         
-        # Try to verify qrcode is now available
+        # After setup.py, dynamically collect all packages it installed
+        print("=== DYNAMICALLY COLLECTING INSTALLED PACKAGES ===")
+        
+        # Get all packages from setup.py's required_packages list
         try:
-            import qrcode
-            print("[SUCCESS] qrcode module is now available!")
-        except ImportError:
-            print("[WARNING] qrcode still not available after setup.py")
+            sys.path.insert(0, 'py')
+            import setup
+            
+            # Use setup.py's package mapping logic
+            for package in setup.required_packages:
+                # Use the same mapping logic from setup.py
+                if package == 'qrcode[pil]':
+                    import_name = 'qrcode'
+                elif package == 'python-dateutil':
+                    import_name = 'dateutil'
+                elif package == 'opencv-python':
+                    import_name = 'cv2'
+                elif package == 'pywebview':
+                    import_name = 'webview'
+                elif package == 'PIL':
+                    import_name = 'PIL'
+                else:
+                    import_name = package.lower().replace('-', '_')
+                
+                try:
+                    mod = __import__(import_name)
+                    if hasattr(mod, '__file__') and mod.__file__:
+                        pkg_path = os.path.dirname(mod.__file__)
+                        datas.append((pkg_path, import_name))
+                        print(f"[COLLECTED] {package} -> {import_name} from {pkg_path}")
+                except ImportError:
+                    print(f"[MISSING] {package} -> {import_name} not found")
+                except Exception as e:
+                    print(f"[ERROR] Could not collect {package}: {e}")
+                    
+        except Exception as e:
+            print(f"[ERROR] Could not load setup.py for dynamic collection: {e}")
             
     else:
         print(f"[ERROR] setup.py not found at {os.path.abspath(setup_script)}")
