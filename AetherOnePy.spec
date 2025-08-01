@@ -27,32 +27,48 @@ except Exception as e:
     print(f"Directory creation error: {e}")
 
 print("=== RUNNING SETUP.PY TO INSTALL ALL DEPENDENCIES ===")
+print(f"Current working directory: {os.getcwd()}")
+
 try:
     import sys
     import subprocess
     
     # Change to py directory and run setup.py
     setup_script = os.path.join('py', 'setup.py')
+    print(f"Looking for setup.py at: {os.path.abspath(setup_script)}")
+    
     if os.path.exists(setup_script):
-        print("Running py/setup.py to install all dependencies...")
+        print("Found setup.py, executing...")
+        print("Command:", [sys.executable, setup_script])
+        print("Working directory:", os.path.abspath('py'))
+        
         result = subprocess.run([sys.executable, setup_script], 
                               cwd='py', 
-                              capture_output=True, 
+                              capture_output=False,  # Show output in real-time
                               text=True)
         
-        if result.returncode == 0:
-            print("[OK] setup.py completed successfully")
-            if result.stdout:
-                print("Setup output:", result.stdout)
-        else:
-            print(f"[WARNING] setup.py returned code {result.returncode}")
-            if result.stderr:
-                print("Setup errors:", result.stderr)
+        print(f"Setup.py finished with return code: {result.returncode}")
+        
+        # Try to verify qrcode is now available
+        try:
+            import qrcode
+            print("[SUCCESS] qrcode module is now available!")
+        except ImportError:
+            print("[WARNING] qrcode still not available after setup.py")
+            
     else:
-        print(f"[WARNING] setup.py not found at {setup_script}")
+        print(f"[ERROR] setup.py not found at {os.path.abspath(setup_script)}")
+        # List what's actually in the py directory
+        py_dir = 'py'
+        if os.path.exists(py_dir):
+            print(f"Contents of {py_dir}:", os.listdir(py_dir))
+        else:
+            print(f"py directory doesn't exist!")
         
 except Exception as e:
-    print(f"[ERROR] Failed to run setup.py: {e}")
+    print(f"[ERROR] Exception running setup.py: {e}")
+    import traceback
+    traceback.print_exc()
 
 # Collect data files from the source tree
 datas = [
