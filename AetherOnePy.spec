@@ -61,19 +61,42 @@ datas = [
     ('ui/dist/ui/browser', 'ui/dist/ui/browser')
 ]
 
-# Add pythonnet runtime files
+# Add pythonnet runtime files manually
 try:
     import pythonnet
     import os
     pythonnet_path = os.path.dirname(pythonnet.__file__)
     runtime_path = os.path.join(pythonnet_path, 'runtime')
     if os.path.exists(runtime_path):
+        # Add entire runtime directory
         datas.append((runtime_path, 'pythonnet/runtime'))
         print(f"Added pythonnet runtime files from: {runtime_path}")
+        
+        # Manually add critical DLL files to binaries for better inclusion
+        dll_files = [
+            'Python.Runtime.dll',
+            'Python.Runtime.Native.dll',
+            'clrmodule.dll'
+        ]
+        
+        for dll in dll_files:
+            dll_path = os.path.join(runtime_path, dll)
+            if os.path.exists(dll_path):
+                # Add to binaries for direct inclusion
+                if 'binaries' not in locals():
+                    binaries = []
+                binaries.append((dll_path, '.'))
+                print(f"Added pythonnet DLL: {dll}")
+            else:
+                print(f"Warning: {dll} not found at {dll_path}")
     else:
         print(f"Warning: pythonnet runtime path not found: {runtime_path}")
 except ImportError:
     print("Warning: pythonnet not available during build")
+
+# Initialize binaries list if not already done
+if 'binaries' not in locals():
+    binaries = []
 
 
 # Use the same logic as py/setup.py to discover plugin requirements
@@ -184,7 +207,7 @@ if plugin_hiddenimports:
 a = Analysis(
     ['desktop_launcher.py'],
     pathex=[],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
@@ -235,9 +258,15 @@ try:
     print(f"[OK] qrcode module available at: {qrcode.__file__}")
 except ImportError as e:
     print(f"[ERROR] qrcode module missing: {e}")
+    print("[INFO] This is expected if qrcode wasn't installed by setup.py yet")
 
 try:
     from PIL import Image
     print(f"[OK] PIL module available")
 except ImportError as e:
-    print(f"[ERROR] PIL module missing: {e}")
+    try:
+        import PIL
+        print(f"[OK] PIL module available (via import PIL)")
+    except ImportError:
+        print(f"[ERROR] PIL/Pillow module missing: {e}")
+        print("[INFO] This is expected if Pillow wasn't installed by setup.py yet")
