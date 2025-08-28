@@ -1,0 +1,61 @@
+<p><strong>Hotbits</strong> (or true random numbers derived from a natural quantum process) are the
+  <strong>fuel</strong> for analysis and broadcasting.</p>
+<div *ngIf="settings">
+  <p>Currently hotbits are <strong *ngIf="!settings['hotbits_collectAutomatically']">not </strong>collected
+    automatically.
+    <strong *ngIf="!settings['hotbits_collectAutomatically']"> Therefore you need to trigger it manually.</strong></p>
+
+
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <div class="card text-bg-primary">
+        <img
+          src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Lava_lamps_%2816136876840%29.jpg/320px-Lava_lamps_%2816136876840%29.jpg"
+          class="card-img-top" alt="WebCam">
+        <div class="card-body">
+          <h5 class="card-title">WebCam Hotbits</h5>
+          <p class="card-text">Point you WebCam to the ceiling or a neutral background. Avoid flickering lights or lava
+            lamps,
+            because the randomness should originate from the WebCam's own electronic noise. The quantum tunneling in the
+            sensor delivers perfect true random numbers, which are not determined even if stored on a hard drive. But they
+            will be determined by you, while you observe the analysis result. This is mind over matter in action!</p>
+          <p *ngIf="!settings['hotbits_use_WebCam']" class="badge text-bg-danger">You have deactivated the WebCam in the
+            Settings!</p>
+          <button class="btn btn-success" *ngIf="settings['hotbits_use_WebCam'] && !webCamRunning"
+                  (click)="startCollectingWebCamHotbits()">Get Hotbits from your WebCam
+          </button>
+          <button class="btn btn-danger" *ngIf="webCamRunning" (click)="stopCollectingWebCamHotbits()">Stop WebCam</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-6 mb-3">
+      <div class="card text-bg-success">
+        <div class="card-img-top d-flex justify-content-center align-items-center" style="height: 200px; background-color: white;">
+          <svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="20" width="100" height="40" rx="5" fill="#2c3e50" stroke="#34495e" stroke-width="2"/>
+            <rect x="15" y="25" width="90" height="30" rx="3" fill="#ecf0f1"/>
+            <circle cx="25" cy="35" r="3" fill="#e74c3c"/>
+            <circle cx="35" cy="35" r="3" fill="#f39c12"/>
+            <circle cx="45" cy="35" r="3" fill="#27ae60"/>
+            <rect x="55" y="32" width="40" height="6" rx="1" fill="#95a5a6"/>
+            <text x="60" y="50" font-family="Arial, sans-serif" font-size="8" fill="#2c3e50">TRNGPro</text>
+            <rect x="45" y="10" width="30" height="8" rx="2" fill="#7f8c8d"/>
+            <line x1="55" y1="10" x2="55" y2="20" stroke="#7f8c8d" stroke-width="2"/>
+            <line x1="65" y1="10" x2="65" y2="20" stroke="#7f8c8d" stroke-width="2"/>
+          </svg>
+        </div>
+        <div class="card-body">
+          <h5 class="card-title">TRNGPro Hardware</h5>
+          <p class="card-text">Professional hardware true random number generator with dual independently shielded noise generators. Provides high-speed (>3.2 Mbits/sec) quantum entropy via USB connection. Superior to software-based solutions.</p>
+          <p *ngIf="!settings['hotbits_use_TRNGPro']" class="badge text-bg-danger">You have deactivated TRNGPro in the Settings!</p>
+          <p *ngIf="settings['hotbits_use_TRNGPro'] && !trngproAvailable" class="badge text-bg-warning">TRNGPro device not detected!</p>
+          <button class="btn btn-success" *ngIf="settings['hotbits_use_TRNGPro'] && trngproAvailable && !trngproRunning"
+                  (click)="startCollectingTRNGProHotbits()">Get Hotbits from TRNGPro
+          </button>
+          <button class="btn btn-danger" *ngIf="trngproRunning" (click)="stopCollectingTRNGProHotbits()">Stop TRNGPro</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,179 @@
+<h1>Settings</h1>
+<p>
+  <button (click)="saveSettings()" class="btn btn-success">SAVE</button> <span *ngIf="savedSuccessShow" class="badge text-bg-success" style="margin-left: 1rem">Successfully saved</span>
+</p>
+
+<div class="card text-bg-danger p-3">
+  <div class="card-body">
+    <h5 class="card-title">Hotbits</h5>
+    <p class="card-text">The <b><i>"fuel"</i></b> for the digital radionics analysis and broadcasting, the quantum interface between mind and matter.</p>
+    <hr>
+    <h6>Behavior</h6>
+    <p class="card-text">These settings control how hotbits should be handled.</p>
+
+    <div class="form-check">
+      <input [formControl]="hotbits_collectAutomatically" class="form-check-input" type="checkbox" id="hotbits_collectAutomatically">
+      <label class="form-check-label" for="hotbits_collectAutomatically">
+        Collect Hotbits automatically
+      </label>
+      <div class="form-text text-bg-danger p-3">It will try to hold the hotbits packages always above 1000. <strong>Be aware:</strong> This takes control eventually of your webcam.</div>
+    </div>
+
+    <div class="form-check">
+      <input [formControl]="hotbits_mix_TRNG" class="form-check-input" type="checkbox" id="hotbits_mix_TRNG">
+      <label class="form-check-label" for="hotbits_collectAutomatically">
+        Mix TRNG sources
+      </label>
+      <div class="form-text text-bg-danger p-3">If more than one source for true randomness is available, it will mix the "hotbits" together, in order to get better quality.</div>
+    </div>
+
+    <hr>
+    <h6>Source</h6>
+    <p class="card-text">These settings handles the source for hotbits.</p>
+    <div class="form-check">
+      <input [formControl]="hotbits_use_RPi" class="form-check-input" type="checkbox" id="hotbits_use_RPi">
+      <label class="form-check-label" for="hotbits_use_RPi">
+        Use Raspberry Pi's own TRNG
+      </label>
+      <div class="form-text text-bg-danger p-3">For the new Raspberry Pi OS it should work out of the box.</div>
+    </div>
+
+    <div class="form-check">
+      <input [formControl]="hotbits_use_WebCam" class="form-check-input" type="checkbox" id="hotbits_use_WebCam">
+      <label class="form-check-label" for="hotbits_use_WebCam">
+        Use your WebCam as a TRNG source
+      </label>
+      <div class="form-text text-bg-danger p-3">The WebCam is the best source for genuine hotbits, fast and effective.</div>
+    </div>
+
+    <div class="form-check">
+      <input [formControl]="hotbits_use_TRNGPro" class="form-check-input" type="checkbox" id="hotbits_use_TRNGPro">
+      <label class="form-check-label" for="hotbits_use_TRNGPro">
+        Use TRNGPro hardware device as a TRNG source
+      </label>
+      <div class="form-text text-bg-danger p-3">Professional hardware true random number generator with high-quality entropy. <a href="https://ubld.it/products/truerngprov2" target="_blank" style="color: white; font-weight: bolder">Learn more</a></div>
+    </div>
+    <fieldset disabled>
+    <div class="form-check">
+      <input [formControl]="hotbits_use_Arduino" class="form-check-input" type="checkbox" id="hotbits_use_Arduino">
+      <label class="form-check-label" for="hotbits_use_Arduino">
+        Use Arduino as a TRNG source
+      </label>
+      <div class="form-text text-bg-danger p-3"><a href="#" style="color: white; font-weight: bolder">Learn</a> how to set up an Arduino microcontroller for this purpose.</div>
+    </div>
+
+    <div class="form-check">
+      <input [formControl]="hotbits_use_ESP" class="form-check-input" type="checkbox" id="hotbits_use_ESP">
+      <label class="form-check-label" for="hotbits_use_ESP">
+        Use ESP32 as a TRNG source
+      </label>
+      <div class="form-text text-bg-danger p-3"><a href="#" style="color: white; font-weight: bolder">Learn</a> how to set up an ESP32 microcontroller for this purpose.</div>
+    </div>
+    </fieldset>
+    <div class="form-check">
+      <input [formControl]="hotbits_use_time_based_trng" class="form-check-input" type="checkbox" id="hotbits_use_time_based_trng">
+      <label class="form-check-label" for="hotbits_use_time_based_trng">
+        Use Time Based TRNG (low quality, with just a little bit of quantum effect)
+      </label>
+      <div class="form-text text-bg-danger p-3">A time-based TRNG generates randomness by measuring execution time differences between identical loops, which are influenced by system-level unpredictability like CPU load and scheduling. The randomness is primarily classical, with quantum effects (e.g., thermal noise and oscillator stability) contributing less than 0.001%. This makes it a practical but not quantum-driven method for generating random numbers.</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="card text-bg-primary p-3" style="margin-top: 1rem">
+  <div class="card-body">
+    <h5 class="card-title">Analysis</h5>
+    <p class="card-text">Digital Radionics provides the fastest and effective analysis.</p>
+
+    <div class="form-check">
+      <input [formControl]="analysisAlwaysCheckGV" class="form-check-input text-bg-danger" type="checkbox" id="analysisAlwaysCheckGV">
+      <label class="form-check-label" for="analysisAlwaysCheckGV">
+        Automatic General Vitality Check
+      </label>
+      <div class="form-text text-bg-primary p-3">It will check for you the GV of every rate and of the target. Use it for fast analysis. But better check every single rate yourself.</div>
+    </div>
+
+    <div class="form-check">
+      <input [formControl]="analysisAdvanced" class="form-check-input text-bg-warning" type="checkbox" id="analysisAdvanced">
+      <label class="form-check-label" for="analysisAdvanced">
+        Advanced Analysis
+      </label>
+      <div class="form-text text-bg-primary p-3">Using more hotbits advanced analysis is able to deliver accurate energetic analysis. Use only if you have enough hotbits.</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="card text-bg-primary p-3" style="margin-top: 1rem; margin-bottom: 1rem">
+  <div class="card-body">
+    <h5 class="card-title">Interpretation of Analysis</h5>
+    <p class="card-text">You can use <strong>OpenAI API (<a class="text-warning" href="https://platform.openai.com" target="openAI">openai.com</a>, <a class="text-warning" href="https://www.youtube.com/watch?v=OB99E7Y1cMA" target="openAI2">Video tutorial</a>)</strong>, but this requires a key and an payed account.</p>
+    <p class="card-text">The OpenAI system content description (general purpose).</p>
+    <p><textarea [formControl]="openAiSystemContent" class="form-control" id="openAiSystemContent"></textarea></p>
+    <div class="input-group mb-3">
+      <span class="input-group-text" id="basic-addon1">OpenAI KEY</span>
+      <input [formControl]="openAiKey" type="password" class="form-control" placeholder="Username" aria-label="Username" aria-describedby="basic-addon1">
+    </div>
+
+    <p>The <strong>user content description</strong> is attached to the analysis result for describing your intention to analyze the result in the context of a radionics analysis. Feel free to finetune the text and experiment.</p>
+    <p>This text is also used in the <button class="btn btn-sm btn-success smallerButton">COPY DATA TO CLIPBOARD</button> button, which allows you to insert it manually into different AI services.</p>
+    <p><textarea [formControl]="openAiUserContent" class="form-control" id="openAiUserContent" rows="8"></textarea></p>
+  </div>
+
+</div>
+
+<div class="card text-bg-success p-3" style="margin-top: 1rem">
+  <div class="card-body">
+    <h5 class="card-title">Broadcasting</h5>
+    <p class="card-text">Your intention is reinforced by repetition and pattern generation.</p>
+
+
+
+    <div class="form-check">
+      <input [formControl]="useGPIOforBroadcasting" class="form-check-input text-bg-success" type="checkbox" id="useGPIOforBroadcasting">
+      <label class="form-check-label" for="useGPIOforBroadcasting">
+        Use Raspberry Pi GPIO for broadcasting
+      </label>
+      <div class="form-text text-bg-success p-3">Directly transmit the broadcasting to the Raspberry Pi Hardware.</div>
+      <div *ngIf="!useGPIOforBroadcasting.getRawValue()" class="form-text text-bg-success p-3">If not available or selected, it will broadcast using advanced hashing methods, generating images and sounds as well.</div>
+    </div>
+
+    <div *ngIf="useGPIOforBroadcasting.getRawValue()">
+      <p>
+        Use these GPIO pins to broadcast the rates. The Raspberry Pi will use these pins to send the broadcasting signals.<br>
+        GPIOs: 4, 5, 6, 12, 13, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27<br>
+        For more information go to the <strong><a href="https://pinout.xyz/" target="_blank" style="color: #1f1d1d">Raspberry Pi Pinout</a></strong>.
+      </p>
+      <p>
+        <a href="https://www.raspberrypi.com/documentation/computers/images/GPIO-Pinout-Diagram-2.png?hash=df7d7847c57a1ca6d5b2617695de6d46" target="pinout">
+          <img src="https://www.raspberrypi.com/documentation/computers/images/GPIO-Pinout-Diagram-2.png?hash=df7d7847c57a1ca6d5b2617695de6d46" width ="40%" alt="Raspberry Pi GPIO Pinout">
+        </a>
+      </p>
+
+      <table class="table-sm">
+        <tbody>
+        <tr>
+          <td>RED</td><td><input [formControl]="gpioRED" class="form-control" type="text"></td>
+          <td>LASER</td><td><input [formControl]="gpioLASER" class="form-control" type="text"></td>
+        </tr>
+        <tr>
+          <td>BLUE</td><td><input [formControl]="gpioBLUE" class="form-control" type="text"></td>
+          <td>ULTRA VIOLET</td><td><input [formControl]="gpioUV" class="form-control" type="text"></td>
+        </tr>
+        <tr>
+          <td>GREEN</td><td><input [formControl]="gpioGREEN" class="form-control" type="text"></td>
+          <td>WHITE</td><td><input [formControl]="gpioWHITE" class="form-control" type="text"></td>
+        </tr>
+        <tr>
+          <td>INTERVAL</td><td><input [formControl]="gpioSleep" class="form-control" type="text"></td>
+        </tr>
+        </tbody>
+      </table>
+      <div class="form-text text-bg-success p-3">0.2 seconds is the default INTERVAL. Be aware that if you use longer blinking the LED requires a higher resistor.</div>
+    </div>
+
+  </div>
+</div>
+
+
